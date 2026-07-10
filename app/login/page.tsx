@@ -3,6 +3,9 @@ import { Card, Field, Input } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { signIn } from "./actions";
 
+// 帳號與課程平台共用（同帳同密）→ 忘記密碼一律至課程平台重設
+const COURSE_RESET_URL = "https://course.huangxi.info/forgot-password";
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -60,12 +63,33 @@ export default async function LoginPage({
               />
             </Field>
 
-            <SubmitButton pendingText="登入中…">登入</SubmitButton>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <SubmitButton pendingText="登入中…">登入</SubmitButton>
+              <a
+                href={COURSE_RESET_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 underline-offset-2 transition hover:text-[color:var(--gold-bright)] hover:underline"
+              >
+                忘記密碼？
+              </a>
+            </div>
           </form>
         </Card>
 
-        <p className="mt-4 text-center text-xs text-slate-500">
+        <p className="mt-4 text-center text-xs leading-relaxed text-slate-500">
           使用你的希望學院（QBC）帳號登入即可，無需另行註冊。
+          <br />
+          忘記密碼請至
+          <a
+            href={COURSE_RESET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mx-1 text-[color:var(--gold)] underline-offset-2 hover:underline"
+          >
+            課程平台
+          </a>
+          重設，重設後回此登入（兩站同帳號密碼）。
         </p>
       </div>
     </div>
