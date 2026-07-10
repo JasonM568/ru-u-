@@ -30,6 +30,11 @@ export default async function ResultsPage() {
     (enrollments ?? []).map((e) => [e.user_id, e]),
   );
 
+  // 只顯示學員的作答；講師的測試填寫不列入分流
+  const studentResponses = (responses ?? []).filter(
+    (r) => enrollMap.get(r.user_id)?.class_role !== "instructor",
+  );
+
   return (
     <div>
       <PageHeader
@@ -48,11 +53,11 @@ export default async function ResultsPage() {
         </details>
       </Card>
 
-      {!responses || responses.length === 0 ? (
+      {studentResponses.length === 0 ? (
         <EmptyState>目前沒有任何已交問卷。</EmptyState>
       ) : (
         <div className="space-y-4">
-          {responses.map((r) => {
+          {studentResponses.map((r) => {
             const scores = r.scores as Scores | null;
             const enr = enrollMap.get(r.user_id);
             const assigned = enr?.job_role ?? null;

@@ -21,6 +21,7 @@ export function AppNav({
   if (isInstructor) {
     links.push({ href: "/admin/roster", label: "名冊" });
     links.push({ href: "/admin/results", label: "問卷分流" });
+    links.push({ href: "/questionnaire", label: "填問卷（測試）" });
     links.push({ href: "/admin/assessments", label: "成果驗收" });
     links.push({ href: "/admin/teams", label: "團隊紀錄" });
     links.push({ href: "/admin/process-notes", label: "孵化紀錄" });

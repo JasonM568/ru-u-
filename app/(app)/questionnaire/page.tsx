@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireEnrollment } from "@/lib/auth";
 import { PageHeader } from "@/components/ui";
 import { QuestionnaireForm } from "./QuestionnaireForm";
@@ -10,7 +9,7 @@ export default async function QuestionnairePage({
   searchParams: Promise<{ saved?: string; error?: string; missing?: string }>;
 }) {
   const { supabase, userId, enrollment } = await requireEnrollment();
-  if (enrollment.class_role !== "student") redirect("/admin/results");
+  const isInstructor = enrollment.class_role === "instructor";
 
   const sp = await searchParams;
 
@@ -27,6 +26,12 @@ export default async function QuestionnairePage({
         title="職務適性評估問卷 v2"
         subtitle="共三部分、25 題，約 15 分鐘。憑第一直覺作答最準，沒有對錯。"
       />
+
+      {isInstructor && (
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          🧪 你以<b>講師</b>身分填寫，屬系統測試用途，<b>不會列入學員分流結果</b>。
+        </div>
+      )}
 
       {sp.saved && (
         <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">

@@ -5,9 +5,8 @@ import { requireEnrollment } from "@/lib/auth";
 import { computeScores, missingAnswers, type Answers } from "@/lib/scoring";
 
 export async function saveQuestionnaire(formData: FormData) {
-  const { supabase, userId, enrollment } = await requireEnrollment();
-  // 講師不需填問卷
-  if (enrollment.class_role !== "student") redirect("/");
+  // 學員正式填寫；講師亦可填寫作為系統測試（RLS 允許 enrolled 使用者寫自己那份）
+  const { supabase, userId } = await requireEnrollment();
 
   let answers: Answers = {};
   try {
