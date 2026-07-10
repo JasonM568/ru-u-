@@ -124,9 +124,22 @@ export function QuestionnaireForm({
 
       {/* 第三部分 */}
       <Card>
-        <SectionTitle hint="依平常的你為每句話評分：1＝非常不像我，5＝非常像我。">
+        <SectionTitle hint="依平常的你為每句話評分。">
           第三部分　協作角色傾向
         </SectionTitle>
+        <div className="mb-4 rounded-lg bg-slate-50 px-3 py-2.5">
+          <p className="mb-1.5 text-xs font-medium text-slate-500">評分說明</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-700">
+            {LIKERT_LABELS.map((l) => (
+              <span key={l.value} className="flex items-center gap-1.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                  {l.value}
+                </span>
+                {l.label}
+              </span>
+            ))}
+          </div>
+        </div>
         <div className="space-y-4">
           {PART3.map((q, i) => (
             <LikertItem
@@ -225,12 +238,13 @@ function LikertItem({
   value?: number;
   onChange: (v: number) => void;
 }) {
+  const selected = LIKERT_LABELS.find((l) => l.value === value);
   return (
     <div className="border-b border-slate-100 pb-4 last:border-0">
       <p className="mb-2 text-sm font-medium text-slate-800">
         {index}. {text}
       </p>
-      <div className="flex gap-1.5">
+      <div className="flex gap-2">
         {LIKERT_LABELS.map((l) => {
           const active = value === l.value;
           return (
@@ -238,17 +252,25 @@ function LikertItem({
               key={l.value}
               type="button"
               onClick={() => onChange(l.value)}
-              className={`flex-1 rounded-lg border px-1 py-2 text-center transition ${
+              aria-label={`${l.value}：${l.label}`}
+              title={l.label}
+              className={`flex-1 rounded-lg border py-3 text-center text-xl font-semibold transition ${
                 active
-                  ? "border-indigo-400 bg-indigo-500 text-white"
-                  : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                  ? "border-indigo-500 bg-indigo-500 text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300"
               }`}
             >
-              <span className="block text-base font-semibold">{l.value}</span>
-              <span className="block text-[10px] leading-tight">{l.label}</span>
+              {l.value}
             </button>
           );
         })}
+      </div>
+      <div className="mt-1.5 flex items-center justify-between text-xs text-slate-400">
+        <span>← 非常不像我</span>
+        {selected ? (
+          <span className="font-medium text-indigo-600">已選：{selected.label}</span>
+        ) : null}
+        <span>非常像我 →</span>
       </div>
     </div>
   );
