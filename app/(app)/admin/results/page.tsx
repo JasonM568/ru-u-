@@ -1,7 +1,8 @@
 import { requireInstructor } from "@/lib/auth";
 import { Card, PageHeader, Badge, EmptyState } from "@/components/ui";
 import { jobRoleName, teamName } from "@/lib/constants";
-import type { Scores } from "@/lib/scoring";
+import { QuestionnaireReview } from "@/components/QuestionnaireReview";
+import type { Scores, Answers } from "@/lib/scoring";
 
 const TRACK: Record<string, string> = {
   MA: "總經",
@@ -35,6 +36,17 @@ export default async function ResultsPage() {
         title="問卷分流結果"
         subtitle="以第一部分主傾向為骨幹、二三部分為修正。系統建議僅供參考，最終由講師拍板。"
       />
+
+      <Card className="mb-4">
+        <details>
+          <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
+            預覽問卷題目（空白）
+          </summary>
+          <div className="mt-4">
+            <QuestionnaireReview />
+          </div>
+        </details>
+      </Card>
 
       {!responses || responses.length === 0 ? (
         <EmptyState>目前沒有任何已交問卷。</EmptyState>
@@ -125,6 +137,15 @@ export default async function ResultsPage() {
                 ) : (
                   <p className="text-sm text-slate-400">（此份問卷無計分資料）</p>
                 )}
+
+                <details className="mt-3 border-t border-slate-100 pt-3">
+                  <summary className="cursor-pointer text-sm font-medium text-indigo-600">
+                    查看完整作答（25 題）
+                  </summary>
+                  <div className="mt-3 rounded-lg bg-slate-50 p-4">
+                    <QuestionnaireReview answers={(r.answers as Answers) ?? {}} />
+                  </div>
+                </details>
               </Card>
             );
           })}
