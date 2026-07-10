@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Card, Field, Input } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { signIn } from "./actions";
@@ -10,15 +11,24 @@ export default async function LoginPage({
   const { error, next } = await searchParams;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4">
+    <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">
-            菁英班孵化系統 1.0
+        <div className="mb-7 flex flex-col items-center text-center">
+          <Image
+            src="/qec-logo.png"
+            alt="QEC 量子菁英俱樂部"
+            width={104}
+            height={104}
+            priority
+            className="rounded-full ring-1 ring-[color:var(--hairline)]"
+          />
+          <h1 className="font-display mt-4 text-2xl font-bold tracking-wide text-gold">
+            投資菁英班
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            希望學院．菁英班投資團隊
+          <p className="mt-1 text-[11px] tracking-[0.25em] text-slate-500">
+            QUANTUM ELITE CLUB
           </p>
+          <p className="mt-2 text-sm text-slate-400">孵化系統 1.0　·　登入</p>
         </div>
 
         <Card>
@@ -26,7 +36,7 @@ export default async function LoginPage({
             <input type="hidden" name="next" value={next ?? "/"} />
 
             {error && (
-              <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <div className="rounded-lg border border-rose-700/40 bg-rose-50 px-3 py-2 text-sm text-rose-600">
                 {error}
               </div>
             )}
@@ -54,7 +64,7 @@ export default async function LoginPage({
           </form>
         </Card>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
+        <p className="mt-4 text-center text-xs text-slate-500">
           使用你的希望學院（QBC）帳號登入即可，無需另行註冊。
         </p>
       </div>

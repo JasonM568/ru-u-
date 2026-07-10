@@ -1,27 +1,121 @@
 @import "tailwindcss";
 
-@theme inline {
+@theme {
   --font-sans:
     "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-display:
+    "Noto Serif TC", "Songti TC", "PingFang TC", Georgia, "Times New Roman",
+    serif;
+
+  /* ── 中性色：藏藍。slate 反轉 → 50 最深(面板)、900 近白(文字) ── */
+  --color-slate-50: #101b33;
+  --color-slate-100: #16233f;
+  --color-slate-200: #263654;
+  --color-slate-300: #35486d;
+  --color-slate-400: #8b96ab;
+  --color-slate-500: #9ca8bf;
+  --color-slate-600: #b5bece;
+  --color-slate-700: #ced5e1;
+  --color-slate-800: #e3e7ef;
+  --color-slate-900: #f4f6fa;
+  --color-white: #0f1a30; /* 卡片/輸入等淺底 → 深色面板 */
+
+  /* ── 主色：金（取代 indigo）── */
+  --color-indigo-50: #221b0c;
+  --color-indigo-100: #2d2411;
+  --color-indigo-200: #4d3f1d;
+  --color-indigo-300: #6f5928;
+  --color-indigo-400: #b6923f;
+  --color-indigo-500: #cba14b;
+  --color-indigo-600: #d9b247;
+  --color-indigo-700: #edca6e;
+
+  /* ── 狀態色：深底 + 亮字 ── */
+  --color-emerald-50: #0e2a20;
+  --color-emerald-500: #34d399;
+  --color-emerald-600: #6ee7b7;
+  --color-emerald-700: #93f0c6;
+  --color-rose-50: #2d1520;
+  --color-rose-500: #fb7185;
+  --color-rose-600: #fda4af;
+  --color-rose-700: #fecdd3;
+  --color-amber-50: #2c220e;
+  --color-amber-100: #3a2e12;
+  --color-amber-200: #5a4622;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
 }
 
 :root {
-  --background: #f4f5f7;
-  --foreground: #1a1d24;
+  --background: #0a1020;
+  --foreground: #e8ebf3;
+  --gold: #cba14b;
+  --gold-bright: #e9cf82;
+  --gold-deep: #b58b38;
+  --hairline: rgba(203, 161, 75, 0.22);
 }
 
 html,
 body {
-  background: var(--background);
+  min-height: 100%;
   color: var(--foreground);
+  background:
+    radial-gradient(1100px 520px at 50% -8%, #182a4f 0%, rgba(24, 42, 79, 0) 60%),
+    linear-gradient(180deg, #0c1426 0%, #0a0f1c 100%);
+  background-attachment: fixed;
 }
-
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
-
-/* 長中文字串在手機上不撐爆版面 */
 * {
   overflow-wrap: break-word;
+}
+
+/* ── 品牌輔助類別 ── */
+.font-display {
+  font-family: var(--font-display);
+}
+.text-gold {
+  background: linear-gradient(180deg, #f6e6ae 0%, #d9b247 48%, #b58b38 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.qec-card {
+  background: linear-gradient(
+    180deg,
+    rgba(22, 35, 63, 0.72) 0%,
+    rgba(14, 24, 46, 0.72) 100%
+  );
+  border: 1px solid var(--hairline);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 12px 34px -16px rgba(0, 0, 0, 0.7);
+}
+.btn-gold {
+  background: linear-gradient(180deg, #e9cf82 0%, #cda44d 55%, #b58b38 100%);
+  color: #1b1305;
+  border: 1px solid #d9b96a;
+}
+.btn-gold:hover {
+  filter: brightness(1.07);
+}
+.btn-ghost {
+  background: rgba(203, 161, 75, 0.06);
+  color: #e7d9af;
+  border: 1px solid rgba(203, 161, 75, 0.35);
+}
+.btn-ghost:hover {
+  background: rgba(203, 161, 75, 0.13);
+}
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(203, 161, 75, 0.6),
+    transparent
+  );
 }

@@ -52,7 +52,7 @@ export default async function LedgerPage({
         </div>
       )}
 
-      <div className="mb-4 rounded-lg bg-slate-800 px-4 py-2 text-center text-xs font-medium text-amber-200">
+      <div className="mb-4 rounded-lg border border-[color:var(--hairline)] bg-[rgba(203,161,75,0.1)] px-4 py-2 text-center text-xs font-medium text-amber-700">
         ★ 重要紀律：進場前必設停損——無停損不建倉。
       </div>
 
