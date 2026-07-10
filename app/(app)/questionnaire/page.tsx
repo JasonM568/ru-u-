@@ -72,6 +72,12 @@ export default async function QuestionnairePage({
         </div>
       ) : (
         <>
+          {existing && !isInstructor && (
+            <div className="mb-4 rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+              🔓 講師已開放你<b>重新填寫</b>。可直接修改下方答案，改完請按最底部的
+              <b>「送出問卷」</b>；再次送出後問卷會重新鎖定。
+            </div>
+          )}
           {sp.saved && (
             <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
               已成功送出！{isInstructor ? "（測試填寫）" : "問卷已鎖定，如需修改請洽講師。"}

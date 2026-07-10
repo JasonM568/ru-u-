@@ -14,11 +14,13 @@ export default async function Dashboard() {
   const { data: response } = await supabase
     .schema("elite")
     .from("questionnaire_responses")
-    .select("suggested_role, submitted_at")
+    .select("suggested_role, submitted_at, locked")
     .eq("user_id", userId)
     .maybeSingle();
 
   const role = enrollment.job_role ? JOB_ROLE_MAP[enrollment.job_role] : null;
+  const submitted = !!response?.submitted_at;
+  const reopened = submitted && response?.locked === false;
 
   return (
     <div>
@@ -55,7 +57,17 @@ export default async function Dashboard() {
 
         <Card>
           <h2 className="mb-2 font-semibold text-slate-800">職務適性問卷</h2>
-          {response?.submitted_at ? (
+          {reopened ? (
+            <>
+              <Badge tone="amber">講師已開放重填</Badge>
+              <p className="mt-2 text-sm text-slate-500">
+                你可以修改先前的作答並重新送出（送出後會再次鎖定）。
+              </p>
+              <div className="mt-3">
+                <LinkButton href="/questionnaire">前往修改作答</LinkButton>
+              </div>
+            </>
+          ) : submitted ? (
             <>
               <Badge tone="green">已完成</Badge>
               <p className="mt-2 text-sm text-slate-500">
@@ -63,10 +75,12 @@ export default async function Dashboard() {
                 <span className="font-medium text-slate-700">
                   {jobRoleName(response.suggested_role)}
                 </span>
+                <br />
+                問卷已鎖定，如需修改請洽講師開放重填。
               </p>
               <div className="mt-3">
                 <LinkButton href="/questionnaire" variant="ghost">
-                  查看／修改作答
+                  查看我的作答
                 </LinkButton>
               </div>
             </>
