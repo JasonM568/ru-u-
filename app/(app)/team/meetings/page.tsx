@@ -28,12 +28,21 @@ export default async function MeetingsPage({
   const sp = await searchParams;
   const teamId = enrollment.team_id;
 
-  const { data: meetings } = await supabase
-    .schema("elite")
-    .from("team_meetings")
-    .select("*")
-    .eq("team_id", teamId)
-    .order("meet_date", { ascending: false });
+  const [{ data: meetings }, { data: members }] = await Promise.all([
+    supabase
+      .schema("elite")
+      .from("team_meetings")
+      .select("*")
+      .eq("team_id", teamId)
+      .order("meet_date", { ascending: false }),
+    supabase
+      .schema("elite")
+      .from("enrollments")
+      .select("display_name")
+      .eq("team_id", teamId)
+      .eq("class_role", "student")
+      .order("display_name", { ascending: true }),
+  ]);
 
   const canWrite = enrollment.class_role === "student" && !!teamId;
 
@@ -63,16 +72,40 @@ export default async function MeetingsPage({
               ＋ 新增一次例會紀錄
             </summary>
             <form action={createMeeting} className="mt-4 space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="日期" required>
                   <Input type="date" name="meet_date" required />
                 </Field>
                 <Field label="主持">
                   <Input name="host" />
                 </Field>
-                <Field label="出席">
-                  <Input name="attendees" placeholder="與會成員" />
-                </Field>
+              </div>
+              <div>
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                  出席成員
+                </span>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  {members && members.length > 0 ? (
+                    members.map((m, i) => (
+                      <label
+                        key={i}
+                        className="flex items-center gap-1.5 text-sm text-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          name="attendees"
+                          value={m.display_name ?? ""}
+                          defaultChecked
+                        />
+                        {m.display_name ?? "—"}
+                      </label>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-400">
+                      此隊尚無成員名單（請講師先於名冊分組）
+                    </span>
+                  )}
+                </div>
               </div>
 
               <Field label="1. 環境定調（總經分析師）" hint="risk-on / risk-off 與一句話環境定調">

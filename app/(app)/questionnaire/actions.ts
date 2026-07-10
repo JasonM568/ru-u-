@@ -39,6 +39,7 @@ export async function saveQuestionnaire(formData: FormData) {
         suggested_role: scores.suggestedRole,
         submitted_at: now,
         updated_at: now,
+        locked: true, // 填完即鎖，需講師「開放重填」才能再改
       },
       { onConflict: "user_id" },
     );

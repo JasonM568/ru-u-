@@ -57,6 +57,22 @@ export async function removeEnrollment(formData: FormData) {
   redirect("/admin/roster?removed=1");
 }
 
+// ── 問卷：開放某位學員重填（解鎖）──
+export async function reopenQuestionnaire(formData: FormData) {
+  const { supabase } = await requireInstructor();
+  const userId = str(formData, "user_id");
+  if (!userId) redirect("/admin/results");
+
+  const { error } = await supabase
+    .schema("elite")
+    .from("questionnaire_responses")
+    .update({ locked: false, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  if (error) redirect(`/admin/results?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/admin/results");
+  redirect("/admin/results?reopened=1");
+}
+
 // ── 成果驗收：儲存一份評分 ──
 export async function saveAssessment(formData: FormData) {
   const { supabase, userId } = await requireInstructor();

@@ -2,6 +2,7 @@ import { requireInstructor } from "@/lib/auth";
 import { Card, PageHeader, Badge, EmptyState } from "@/components/ui";
 import { jobRoleName, teamName } from "@/lib/constants";
 import { QuestionnaireReview } from "@/components/QuestionnaireReview";
+import { reopenQuestionnaire } from "../actions";
 import type { Scores, Answers } from "@/lib/scoring";
 
 const TRACK: Record<string, string> = {
@@ -11,8 +12,13 @@ const TRACK: Record<string, string> = {
   ST: "策略",
 };
 
-export default async function ResultsPage() {
+export default async function ResultsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reopened?: string; error?: string }>;
+}) {
   const { supabase } = await requireInstructor();
+  const sp = await searchParams;
 
   const [{ data: responses }, { data: enrollments }] = await Promise.all([
     supabase
@@ -41,6 +47,17 @@ export default async function ResultsPage() {
         title="問卷分流結果"
         subtitle="以第一部分主傾向為骨幹、二三部分為修正。系統建議僅供參考，最終由講師拍板。"
       />
+
+      {sp.reopened && (
+        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          已開放該學員重新填寫問卷。
+        </div>
+      )}
+      {sp.error && (
+        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          操作失敗：{sp.error}
+        </div>
+      )}
 
       <Card className="mb-4">
         <details>
@@ -151,6 +168,25 @@ export default async function ResultsPage() {
                     <QuestionnaireReview answers={(r.answers as Answers) ?? {}} />
                   </div>
                 </details>
+
+                <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3 text-sm">
+                  {r.locked ? (
+                    <>
+                      <span className="text-slate-400">🔒 已鎖定（學員無法自行修改）</span>
+                      <form action={reopenQuestionnaire}>
+                        <input type="hidden" name="user_id" value={r.user_id} />
+                        <button
+                          type="submit"
+                          className="font-medium text-indigo-600 hover:underline"
+                        >
+                          開放重填
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <span className="text-emerald-600">🔓 已開放重填（等待學員重新送出）</span>
+                  )}
+                </div>
               </Card>
             );
           })}

@@ -1,6 +1,8 @@
 import { requireEnrollment } from "@/lib/auth";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Card, Badge, LinkButton } from "@/components/ui";
 import { QuestionnaireForm } from "./QuestionnaireForm";
+import { QuestionnaireReview } from "@/components/QuestionnaireReview";
+import { jobRoleName } from "@/lib/constants";
 import type { Answers } from "@/lib/scoring";
 
 export default async function QuestionnairePage({
@@ -8,8 +10,9 @@ export default async function QuestionnairePage({
 }: {
   searchParams: Promise<{ saved?: string; error?: string; missing?: string }>;
 }) {
-  const { supabase, userId, enrollment } = await requireEnrollment();
+  const { supabase, userId, email, enrollment } = await requireEnrollment();
   const isInstructor = enrollment.class_role === "instructor";
+  const studentName = enrollment.display_name ?? email ?? "";
 
   const sp = await searchParams;
 
@@ -19,6 +22,9 @@ export default async function QuestionnairePage({
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
+
+  // 學員填完即鎖定；講師測試填寫不受鎖定限制
+  const isLocked = !!existing?.locked && !isInstructor;
 
   return (
     <div>
@@ -33,32 +39,68 @@ export default async function QuestionnairePage({
         </div>
       )}
 
-      {sp.saved && (
-        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          已成功送出！你可以隨時回來修改，最終職務由講師依計分結果指派。
+      {isLocked ? (
+        // 已送出且鎖定 → 唯讀檢視自己的作答
+        <div>
+          <Card className="mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <Badge tone="green">已完成並送出</Badge>
+                <p className="mt-2 text-sm text-slate-600">
+                  問卷送出後即鎖定，如需修改請洽講師開放重填。
+                </p>
+              </div>
+              {existing?.suggested_role && (
+                <div className="text-right text-sm">
+                  <span className="text-slate-400">系統建議職務</span>
+                  <p className="text-lg font-bold text-indigo-600">
+                    {jobRoleName(existing.suggested_role)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+          <Card>
+            <h2 className="mb-4 font-semibold text-slate-800">你的作答</h2>
+            <QuestionnaireReview answers={(existing?.answers as Answers) ?? {}} />
+          </Card>
+          <div className="mt-4">
+            <LinkButton href="/" variant="ghost">
+              返回儀表板
+            </LinkButton>
+          </div>
         </div>
-      )}
-      {sp.error === "incomplete" && (
-        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          尚有 {sp.missing ?? ""} 題未作答，請完成後再送出。
-        </div>
-      )}
-      {sp.error && sp.error !== "incomplete" && (
-        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          送出時發生問題：{sp.error}
-        </div>
-      )}
+      ) : (
+        <>
+          {sp.saved && (
+            <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              已成功送出！{isInstructor ? "（測試填寫）" : "問卷已鎖定，如需修改請洽講師。"}
+            </div>
+          )}
+          {sp.error === "incomplete" && (
+            <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              尚有 {sp.missing ?? ""} 題未作答，請完成後再送出。
+            </div>
+          )}
+          {sp.error && sp.error !== "incomplete" && (
+            <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              送出時發生問題：{sp.error}
+            </div>
+          )}
 
-      <QuestionnaireForm
-        initialAnswers={(existing?.answers as Answers) ?? {}}
-        initialInfo={{
-          full_name: existing?.full_name ?? "",
-          contact: existing?.contact ?? "",
-          experience: existing?.experience ?? "",
-          occupation: existing?.occupation ?? "",
-          ai_course: existing?.ai_course ?? "",
-        }}
-      />
+          <QuestionnaireForm
+            studentName={studentName}
+            initialAnswers={(existing?.answers as Answers) ?? {}}
+            initialInfo={{
+              full_name: existing?.full_name ?? "",
+              contact: existing?.contact ?? "",
+              experience: existing?.experience ?? "",
+              occupation: existing?.occupation ?? "",
+              ai_course: existing?.ai_course ?? "",
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

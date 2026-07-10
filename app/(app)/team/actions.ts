@@ -34,7 +34,8 @@ export async function createMeeting(formData: FormData) {
       team_id: enrollment.team_id,
       meet_date: str(formData, "meet_date") ?? new Date().toISOString().slice(0, 10),
       host: str(formData, "host"),
-      attendees: str(formData, "attendees"),
+      attendees:
+        formData.getAll("attendees").map(String).filter(Boolean).join("、") || null,
       env_tone: str(formData, "env_tone"),
       candidate: str(formData, "candidate"),
       market_read: str(formData, "market_read"),
