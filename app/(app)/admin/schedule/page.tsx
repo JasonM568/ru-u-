@@ -45,7 +45,7 @@ function DayTable({ title, slots }: { title: string; slots: Slot[] }) {
       <div className="space-y-3">
         {slots.map((s, i) =>
           s.content === "" ? (
-            <div key={i} className="py-1 text-center text-xs text-slate-300">
+            <div key={i} className="py-1 text-center text-xs text-slate-500">
               — {s.time}　{s.title} —
             </div>
           ) : (

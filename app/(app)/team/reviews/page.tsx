@@ -164,7 +164,7 @@ function PredRow({ label, p }: { label: string; p?: Pred }) {
     <div className="flex items-center gap-2">
       <span className="w-20 shrink-0 text-xs text-slate-400">{label}</span>
       <span className="text-slate-600">{p.pred ?? "—"}</span>
-      <span className="text-slate-300">→</span>
+      <span className="text-slate-500">→</span>
       <span className="text-slate-600">{p.actual ?? "—"}</span>
       <span>{p.hit ? "✅" : "❌"}</span>
     </div>

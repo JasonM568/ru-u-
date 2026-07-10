@@ -48,7 +48,7 @@ export function QuestionnaireReview({ answers }: { answers?: Answers }) {
                       {v} — {LIKERT_LABELS.find((l) => l.value === v)?.label}
                     </span>
                   ) : (
-                    <span className="text-slate-300">未作答</span>
+                    <span className="text-slate-500">未作答</span>
                   )}
                 </p>
               )}
@@ -114,7 +114,7 @@ function ChoiceRow({
           );
         })}
         {showPick && !picked && (
-          <p className="text-xs text-slate-300">未作答</p>
+          <p className="text-xs text-slate-500">未作答</p>
         )}
       </div>
     </div>

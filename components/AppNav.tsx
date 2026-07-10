@@ -59,7 +59,7 @@ export function AppNav({
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="rounded-md border border-[color:var(--hairline)] px-2.5 py-1 text-xs text-slate-300 transition hover:bg-[rgba(203,161,75,0.1)]"
+                className="rounded-md border border-[color:var(--hairline)] px-2.5 py-1 text-xs text-slate-400 transition hover:bg-[rgba(203,161,75,0.1)]"
               >
                 登出
               </button>

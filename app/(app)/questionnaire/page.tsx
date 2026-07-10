@@ -73,9 +73,12 @@ export default async function QuestionnairePage({
       ) : (
         <>
           {existing && !isInstructor && (
-            <div className="mb-4 rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
-              🔓 講師已開放你<b>重新填寫</b>。可直接修改下方答案，改完請按最底部的
-              <b>「送出問卷」</b>；再次送出後問卷會重新鎖定。
+            <div className="mb-4 rounded-lg border border-[color:var(--hairline)] bg-[rgba(203,161,75,0.1)] px-4 py-3 text-sm text-slate-800">
+              🔓 講師已開放你
+              <b className="text-[color:var(--gold-bright)]">重新填寫</b>
+              。可直接修改下方答案，改完請按最底部的
+              <b className="text-[color:var(--gold-bright)]">「送出問卷」</b>
+              ；再次送出後問卷會重新鎖定。
             </div>
           )}
           {sp.saved && (

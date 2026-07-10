@@ -45,7 +45,7 @@ export function SectionTitle({
 }) {
   return (
     <div className="mb-3 border-l-2 border-[color:var(--gold)] pl-3">
-      <h2 className="font-display text-base font-semibold text-slate-100">
+      <h2 className="font-display text-base font-semibold text-slate-800">
         {children}
       </h2>
       {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
@@ -66,7 +66,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-300">
+      <span className="mb-1 block text-sm font-medium text-slate-700">
         {label}
         {required && <span className="ml-0.5 text-rose-500">*</span>}
       </span>
@@ -77,7 +77,7 @@ export function Field({
 }
 
 const controlClass =
-  "w-full rounded-lg border border-slate-200 bg-[#0c1730] px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-[color:var(--gold)] focus:ring-2 focus:ring-[rgba(203,161,75,0.25)] disabled:opacity-60";
+  "w-full rounded-lg border border-slate-200 bg-[#0c1730] px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-[color:var(--gold)] focus:ring-2 focus:ring-[rgba(203,161,75,0.25)] disabled:opacity-60";
 
 export function Input(props: ComponentProps<"input">) {
   return <input {...props} className={`${controlClass} ${props.className ?? ""}`} />;
@@ -106,7 +106,7 @@ export function Badge({
   tone?: "slate" | "indigo" | "green" | "amber" | "rose";
 }) {
   const tones: Record<string, string> = {
-    slate: "border-slate-200 bg-slate-100 text-slate-300",
+    slate: "border-slate-200 bg-slate-100 text-slate-600",
     indigo:
       "border-[rgba(203,161,75,0.4)] bg-[rgba(203,161,75,0.12)] text-[color:var(--gold-bright)]",
     green: "border-emerald-700/40 bg-emerald-50 text-emerald-600",
