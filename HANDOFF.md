@@ -83,10 +83,18 @@ npm run build      # 上線前驗證
 **講師（用陳孟宏/顧及然）**：`/admin/roster` 指派職務分隊｜`/admin/results` 展開看學員 25 題作答｜`/admin/assessments` 個人+團隊評分｜`/admin/process-notes` 填一筆。
 **資安**：學員登入打 `/admin/assessments`、`/admin/process-notes` 應被擋（DB 層已測 = 0 筆）。
 
+## UI 主題（2026-07-10 改版）
+
+QEC 深藏藍 × 金奢華風。色票在 `app/globals.css` 用 Tailwind `@theme` 定義：**slate 反轉**（低數字=深色面板、高數字=亮色文字）、**indigo→金**、狀態色深底亮字、`--color-white`→深面板。
+⚠️ 寫新元件時：**文字色用高數字 slate（600–900）**、面板用低數字（50–200），否則文字會偏暗。品牌類別：`.text-gold` `.font-display` `.btn-gold` `.btn-ghost` `.qec-card`。Logo=`public/qec-logo.png`（已去背）、favicon=`app/icon.png`、標題字型 Noto Serif TC（layout `<link>` 載入）。
+
 ## 待辦 / 已知事項
 
+- [ ] 確認 course 平台「忘記密碼」正確路徑（登入頁連結假設 `https://course.huangxi.info/forgot-password`，見 `app/login/page.tsx` 的 `COURSE_RESET_URL`）
+- [ ] Supabase 後台把 `https://elite.huangxi.info/**` 加入 Auth → Redirect URLs（**用 Add URL 附加、勿覆蓋**，共用庫）
 - [ ] 使用者跑完整功能/驗收測試，回報 bug → 修 → push → 自動部署
-- [ ] （可選）清掉「測試點數」的示範問卷作答
+- [ ] 正式開課前完整清理測試資料（清空「學院測試」問卷/團隊紀錄）
 - [ ] 課前：講師在 `/admin/roster` 幫 8 位真實學員分隊、課後依問卷指派職務
-- 現況名冊：10 學員（吳旻玹/桂平宇/楊世祺/莊富翔/陳俐瑾/陳建中/黃大正/黃淑珮/學院測試/測試點數）＋ 3 講師，多數學員未分隊未填問卷（課前狀態）
+- 現況名冊：9 學員（吳旻玹/桂平宇/楊世祺/莊富翔/陳俐瑾/陳建中/黃大正/黃淑珮/學院測試）＋ 3 講師（陳孟宏/顧及然/梁舒庭）。「測試點數」已移除。多數學員未分隊未填問卷（課前狀態）
+- 帳密：兩站同帳密、密碼單向雜湊不可查；不做臨時密碼，忘記密碼走 course 平台重設
 - ⚠️ 非本專案：該 Supabase 有 44 張 ERP 表 RLS 未開（既有問題），本系統未觸碰
