@@ -36,9 +36,9 @@ export function AppNav({
             <Image
               src="/qec-logo.png"
               alt="QEC"
-              width={36}
-              height={36}
-              className="rounded-full ring-1 ring-[color:var(--hairline)]"
+              width={748}
+              height={854}
+              className="h-9 w-auto"
             />
             <span className="flex flex-col leading-tight">
               <span className="font-display text-sm font-bold tracking-wide text-gold">

@@ -17,10 +17,10 @@ export default async function LoginPage({
           <Image
             src="/qec-logo.png"
             alt="QEC 量子菁英俱樂部"
-            width={104}
-            height={104}
+            width={748}
+            height={854}
             priority
-            className="rounded-full ring-1 ring-[color:var(--hairline)]"
+            className="h-32 w-auto"
           />
           <h1 className="font-display mt-4 text-2xl font-bold tracking-wide text-gold">
             投資菁英班
