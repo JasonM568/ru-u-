@@ -104,7 +104,7 @@ export default async function Dashboard() {
           <p className="mb-3 text-sm text-slate-500">
             每週例會、模擬決策台帳、覆盤紀錄 — 把「憑感覺做」變成「有紀錄、可檢驗、可改進」。
           </p>
-          <LinkButton href="/team">進入團隊工作區</LinkButton>
+          <LinkButton href="/team">進入團隊運轉紀錄</LinkButton>
         </Card>
       </div>
     </div>

@@ -16,7 +16,6 @@ export function AppNav({
   if (!isInstructor) {
     links.push({ href: "/questionnaire", label: "職務問卷" });
     links.push({ href: "/team", label: "團隊運轉" });
-    links.push({ href: "/team", label: "團隊工作區" });
   }
   if (isInstructor) {
     links.push({ href: "/admin/roster", label: "名冊" });
