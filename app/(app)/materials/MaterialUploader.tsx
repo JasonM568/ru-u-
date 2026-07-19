@@ -34,7 +34,7 @@ export function MaterialUploader() {
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     const mime = MATERIAL_EXT_MIME[ext];
     if (!mime) return setError("僅接受 txt、jpg、png、webp、pdf、zip 檔案");
-    if (file.size > MATERIAL_MAX_BYTES) return setError("檔案超過 20 MB 上限");
+    if (file.size > MATERIAL_MAX_BYTES) return setError("檔案超過 30 MB 上限");
     if (!category) return setError("請選擇分類");
 
     setPending(true);
@@ -72,7 +72,7 @@ export function MaterialUploader() {
 
   return (
     <Card className="mb-6">
-      <SectionTitle hint="僅講師可見。檔案上限 20 MB，接受 txt／jpg／png／webp／pdf／zip。">
+      <SectionTitle hint="僅講師可見。檔案上限 30 MB，接受 txt／jpg／png／webp／pdf／zip。">
         上傳教材
       </SectionTitle>
       {error && (

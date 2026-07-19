@@ -86,7 +86,7 @@ export function materialCategoryName(key?: string | null): string {
 }
 
 export const MATERIALS_BUCKET = "elite-materials";
-export const MATERIAL_MAX_BYTES = 20 * 1024 * 1024;
+export const MATERIAL_MAX_BYTES = 30 * 1024 * 1024;
 
 /** 允許的副檔名 → MIME。storage path 的 ext 與 bucket allowed_mime_types 都以此為準。 */
 export const MATERIAL_EXT_MIME: Record<string, string> = {
