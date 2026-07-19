@@ -12,7 +12,10 @@ export function AppNav({
 }) {
   const isInstructor = enrollment.class_role === "instructor";
 
-  const links: { href: string; label: string }[] = [{ href: "/", label: "儀表板" }];
+  const links: { href: string; label: string }[] = [
+    { href: "/", label: "儀表板" },
+    { href: "/materials", label: "課程教材" },
+  ];
   if (!isInstructor) {
     links.push({ href: "/questionnaire", label: "職務問卷" });
     links.push({ href: "/team", label: "團隊運轉" });

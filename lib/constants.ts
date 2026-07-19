@@ -70,3 +70,34 @@ export function teamName(id?: number | null): string {
   if (!id) return "未分隊";
   return TEAMS.find((t) => t.id === id)?.name ?? `第 ${id} 隊`;
 }
+
+// ── 課程教材 ──
+
+export const MATERIAL_CATEGORIES = [
+  { key: "pre", name: "課前資料" },
+  { key: "day1", name: "Day 1" },
+  { key: "day2", name: "Day 2" },
+  { key: "extra", name: "補充教材" },
+] as const;
+
+export function materialCategoryName(key?: string | null): string {
+  if (!key) return "其他";
+  return MATERIAL_CATEGORIES.find((c) => c.key === key)?.name ?? "其他";
+}
+
+export const MATERIALS_BUCKET = "elite-materials";
+export const MATERIAL_MAX_BYTES = 20 * 1024 * 1024;
+
+/** 允許的副檔名 → MIME。storage path 的 ext 與 bucket allowed_mime_types 都以此為準。 */
+export const MATERIAL_EXT_MIME: Record<string, string> = {
+  txt: "text/plain",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  pdf: "application/pdf",
+};
+
+export const MATERIAL_ACCEPT = Object.keys(MATERIAL_EXT_MIME)
+  .map((e) => `.${e}`)
+  .join(",");
