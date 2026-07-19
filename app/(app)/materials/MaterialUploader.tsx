@@ -9,9 +9,23 @@ import {
   MATERIAL_EXT_MIME,
   MATERIAL_MAX_BYTES,
   MATERIALS_BUCKET,
+  materialCategoryName,
 } from "@/lib/constants";
 import { Card, Field, Input, Select, SectionTitle } from "@/components/ui";
 import { registerMaterial } from "./actions";
+
+type PendingUpload = {
+  file: File;
+  category: string;
+  title: string;
+  mime: string;
+  ext: string;
+};
+
+type DuplicateInfo = {
+  category: string;
+  created_at: string;
+};
 
 export function MaterialUploader() {
   const router = useRouter();
@@ -19,11 +33,50 @@ export function MaterialUploader() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [duplicate, setDuplicate] = useState<{
+    upload: PendingUpload;
+    existing: DuplicateInfo;
+  } | null>(null);
+
+  async function doUpload(u: PendingUpload) {
+    setPending(true);
+    try {
+      const path = `${crypto.randomUUID()}.${u.ext}`;
+      const supabase = createClient();
+      const { error: upError } = await supabase.storage
+        .from(MATERIALS_BUCKET)
+        .upload(path, u.file, { contentType: u.mime, upsert: false });
+      if (upError) {
+        setError(`上傳失敗：${upError.message}`);
+        return;
+      }
+
+      const result = await registerMaterial({
+        path,
+        category: u.category,
+        title: u.title || u.file.name,
+        originalName: u.file.name,
+        mimeType: u.mime,
+        sizeBytes: u.file.size,
+      });
+      if (!result.ok) {
+        setError(`儲存失敗：${result.error}`);
+        return;
+      }
+
+      formRef.current?.reset();
+      setSaved(true);
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSaved(false);
+    setDuplicate(null);
 
     const fd = new FormData(e.currentTarget);
     const file = fd.get("file") as File | null;
@@ -37,37 +90,31 @@ export function MaterialUploader() {
     if (file.size > MATERIAL_MAX_BYTES) return setError("檔案超過 30 MB 上限");
     if (!category) return setError("請選擇分類");
 
+    // 防呆：同名檔案已存在時先擋下提醒，由講師決定是否仍要上傳
     setPending(true);
     try {
-      const path = `${crypto.randomUUID()}.${ext}`;
       const supabase = createClient();
-      const { error: upError } = await supabase.storage
-        .from(MATERIALS_BUCKET)
-        .upload(path, file, { contentType: mime, upsert: false });
-      if (upError) {
-        setError(`上傳失敗：${upError.message}`);
+      const { data: existing } = await supabase
+        .schema("elite")
+        .from("course_materials")
+        .select("category, created_at")
+        .eq("original_name", file.name)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        setDuplicate({
+          upload: { file, category, title, mime, ext },
+          existing: existing as DuplicateInfo,
+        });
         return;
       }
-
-      const result = await registerMaterial({
-        path,
-        category,
-        title: title || file.name,
-        originalName: file.name,
-        mimeType: mime,
-        sizeBytes: file.size,
-      });
-      if (!result.ok) {
-        setError(`儲存失敗：${result.error}`);
-        return;
-      }
-
-      formRef.current?.reset();
-      setSaved(true);
-      router.refresh();
     } finally {
       setPending(false);
     }
+
+    await doUpload({ file, category, title, mime, ext });
   }
 
   return (
@@ -83,6 +130,37 @@ export function MaterialUploader() {
       {saved && (
         <div className="mb-3 rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
           教材已上傳。
+        </div>
+      )}
+      {duplicate && (
+        <div className="mb-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p>
+            已有同名檔案「{duplicate.upload.file.name}」（分類：
+            {materialCategoryName(duplicate.existing.category)}，上傳於{" "}
+            {new Date(duplicate.existing.created_at).toLocaleDateString("zh-TW")}
+            ）。確定要再上傳一份嗎？若是要更新檔案，建議先刪除舊檔。
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                const u = duplicate.upload;
+                setDuplicate(null);
+                void doUpload(u);
+              }}
+              className="rounded-md border border-amber-700/40 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+            >
+              仍要上傳
+            </button>
+            <button
+              type="button"
+              onClick={() => setDuplicate(null)}
+              className="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-100"
+            >
+              取消
+            </button>
+          </div>
         </div>
       )}
       <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2">
@@ -106,7 +184,7 @@ export function MaterialUploader() {
         </Field>
         <div className="flex items-end">
           <button type="submit" disabled={pending} className="btn-gold w-full rounded-lg px-4 py-2 text-sm font-semibold sm:w-auto">
-            {pending ? "上傳中…" : "上傳"}
+            {pending ? "處理中…" : "上傳"}
           </button>
         </div>
       </form>
