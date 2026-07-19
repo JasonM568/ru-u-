@@ -22,6 +22,7 @@ function formatSize(bytes: number): string {
 
 function fileKind(mime: string): string {
   if (mime === "application/pdf") return "PDF";
+  if (mime === "application/zip") return "ZIP";
   if (mime.startsWith("image/")) return "圖片";
   return "文字";
 }

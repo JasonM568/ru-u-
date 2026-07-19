@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireInstructor } from "@/lib/auth";
 import { MATERIAL_CATEGORIES, MATERIAL_MAX_BYTES, MATERIALS_BUCKET } from "@/lib/constants";
 
-const PATH_RE = /^[0-9a-f-]{36}\.(txt|jpe?g|png|webp|pdf)$/;
+const PATH_RE = /^[0-9a-f-]{36}\.(txt|jpe?g|png|webp|pdf|zip)$/;
 
 export type RegisterMaterialInput = {
   path: string;

@@ -96,6 +96,7 @@ export const MATERIAL_EXT_MIME: Record<string, string> = {
   png: "image/png",
   webp: "image/webp",
   pdf: "application/pdf",
+  zip: "application/zip",
 };
 
 export const MATERIAL_ACCEPT = Object.keys(MATERIAL_EXT_MIME)
