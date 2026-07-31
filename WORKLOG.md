@@ -4,18 +4,23 @@
 
 ---
 
-## 2026-07-31　例會紀錄開放同隊共同編輯
+## 2026-07-31　團隊三表全面開放同隊共同編輯
 
-**需求**：例會紀錄原本一旦送出就不能改。改為以小組為單位，同隊成員皆可編輯已發佈的紀錄。
+**需求**：三表原本一旦送出就不能改。改為以小組為單位，同隊成員皆可編輯已發佈的紀錄。
 
-**完成**
+**完成（表一 例會）**
 
 - `/team/meetings` 每筆紀錄下方加「✏️ 編輯此紀錄（同隊皆可修改）」展開表單，帶入原值、修改後儲存。
 - 表單抽成共用元件 `MeetingForm.tsx`（新增/編輯共用），新增 `updateMeeting` server action（`team/actions.ts`），儲存時寫入 `updated_at`。
 - 卡片顯示「最後更新」時間（`updated_at ≠ created_at` 才顯示）。
-- **DB 零變更**：`elite.team_meetings` 的 `meet_upd` RLS 政策原本就允許同隊 UPDATE（講師亦可），純前端補齊。
 
-**備註**：決策台帳（`trade_ledger`）與覆盤（`reviews`）仍是只能新增；若也要開放編輯，可比照此模式。
+**完成（表二 台帳、表三 覆盤，比照辦理）**
+
+- `/team/ledger` 表格每筆下方加編輯展開列（`TradeForm.tsx` + `updateTrade`）。
+- `/team/reviews` 每張卡片下方加編輯展開區（`ReviewForm.tsx` + `updateReview`）。
+- **schema 變更**：`trade_ledger`、`reviews` 原本沒有 `updated_at` 欄位，已用 MCP `apply_migration` 補上（純新增，migration 名 `add_updated_at_to_trade_ledger_and_reviews`）。既有資料列該欄為 NULL，編輯過才有值、才顯示「最後更新」。
+
+**RLS**：三張表的 UPDATE 政策（`meet_upd`／`ledger_upd`／`review_upd`＝同隊可改、講師可改全部）當初建庫時就存在，這次只補前端與 `updated_at` 欄位，安全邊界未動。
 
 **完成**
 

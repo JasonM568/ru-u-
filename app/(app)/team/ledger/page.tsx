@@ -1,18 +1,9 @@
+import { Fragment } from "react";
 import { requireEnrollment } from "@/lib/auth";
-import {
-  Card,
-  PageHeader,
-  Field,
-  Input,
-  Textarea,
-  Select,
-  EmptyState,
-  LinkButton,
-  Badge,
-} from "@/components/ui";
-import { SubmitButton } from "@/components/SubmitButton";
+import { Card, PageHeader, EmptyState, LinkButton, Badge } from "@/components/ui";
 import { teamName } from "@/lib/constants";
-import { createTrade } from "../actions";
+import { createTrade, updateTrade } from "../actions";
+import { TradeForm } from "./TradeForm";
 
 export default async function LedgerPage({
   searchParams,
@@ -62,49 +53,7 @@ export default async function LedgerPage({
             <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
               ＋ 新增一筆模擬決策
             </summary>
-            <form action={createTrade} className="mt-4 space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="日期" required>
-                  <Input type="date" name="trade_date" required />
-                </Field>
-                <Field label="標的" required>
-                  <Input name="symbol" placeholder="如 2330 / AAPL" required />
-                </Field>
-                <Field label="方向">
-                  <Select name="direction" defaultValue="buy">
-                    <option value="buy">買進</option>
-                    <option value="sell">賣出</option>
-                  </Select>
-                </Field>
-                <Field label="進場價">
-                  <Input name="entry" type="number" step="any" />
-                </Field>
-                <Field label="停損" required>
-                  <Input name="stop_loss" type="number" step="any" required />
-                </Field>
-                <Field label="停利">
-                  <Input name="take_profit" type="number" step="any" />
-                </Field>
-                <Field label="倉位 %">
-                  <Input name="position_pct" type="number" step="any" />
-                </Field>
-              </div>
-              <Field label="決策理由（可證偽）" hint="須「可被未來數據推翻」，不可寫「我覺得會漲」" required>
-                <Textarea name="rationale" required />
-              </Field>
-              <Field label="失效條件">
-                <Textarea name="invalidation" />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="結果（模擬賺賠）">
-                  <Input name="result" placeholder="如 +3.2% / -1.5%" />
-                </Field>
-                <Field label="歸因" hint="環境 / 時機 / 選股 / 執行 哪一環">
-                  <Input name="attribution" />
-                </Field>
-              </div>
-              <SubmitButton>新增決策</SubmitButton>
-            </form>
+            <TradeForm action={createTrade} />
           </details>
         </Card>
       )}
@@ -128,27 +77,48 @@ export default async function LedgerPage({
             </thead>
             <tbody>
               {trades.map((t) => (
-                <tr key={t.id} className="border-b border-slate-100 align-top">
-                  <td className="py-2 pr-3 whitespace-nowrap">{t.trade_date}</td>
-                  <td className="pr-3 font-medium">{t.symbol}</td>
-                  <td className="pr-3">
-                    <Badge tone={t.direction === "sell" ? "rose" : "green"}>
-                      {t.direction === "sell" ? "賣" : "買"}
-                    </Badge>
-                  </td>
-                  <td className="pr-3">{t.entry ?? "—"}</td>
-                  <td className="pr-3 text-rose-600">{t.stop_loss ?? "—"}</td>
-                  <td className="pr-3">{t.take_profit ?? "—"}</td>
-                  <td className="pr-3">{t.position_pct != null ? `${t.position_pct}%` : "—"}</td>
-                  <td className="max-w-[220px] pr-3 text-slate-600">
-                    {t.rationale}
-                    {t.invalidation && (
-                      <div className="mt-1 text-xs text-slate-400">失效：{t.invalidation}</div>
-                    )}
-                  </td>
-                  <td className="pr-3">{t.result ?? "—"}</td>
-                  <td className="text-slate-500">{t.attribution ?? "—"}</td>
-                </tr>
+                <Fragment key={t.id}>
+                  <tr className="border-b border-slate-100 align-top">
+                    <td className="py-2 pr-3 whitespace-nowrap">{t.trade_date}</td>
+                    <td className="pr-3 font-medium">{t.symbol}</td>
+                    <td className="pr-3">
+                      <Badge tone={t.direction === "sell" ? "rose" : "green"}>
+                        {t.direction === "sell" ? "賣" : "買"}
+                      </Badge>
+                    </td>
+                    <td className="pr-3">{t.entry ?? "—"}</td>
+                    <td className="pr-3 text-rose-600">{t.stop_loss ?? "—"}</td>
+                    <td className="pr-3">{t.take_profit ?? "—"}</td>
+                    <td className="pr-3">{t.position_pct != null ? `${t.position_pct}%` : "—"}</td>
+                    <td className="max-w-[220px] pr-3 text-slate-600">
+                      {t.rationale}
+                      {t.invalidation && (
+                        <div className="mt-1 text-xs text-slate-400">失效：{t.invalidation}</div>
+                      )}
+                    </td>
+                    <td className="pr-3">{t.result ?? "—"}</td>
+                    <td className="text-slate-500">{t.attribution ?? "—"}</td>
+                  </tr>
+                  {canWrite && (
+                    <tr className="border-b border-slate-100">
+                      <td colSpan={10} className="py-1.5">
+                        <details>
+                          <summary className="cursor-pointer text-xs font-semibold text-indigo-600">
+                            ✏️ 編輯此筆（同隊皆可修改）
+                            {t.updated_at && (
+                              <span className="ml-2 font-normal text-slate-400">
+                                最後更新：{new Date(t.updated_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}
+                              </span>
+                            )}
+                          </summary>
+                          <div className="pb-3">
+                            <TradeForm action={updateTrade} trade={t} />
+                          </div>
+                        </details>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

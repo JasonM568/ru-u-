@@ -122,6 +122,34 @@ export async function createTrade(formData: FormData) {
   redirect("/team/ledger?saved=1");
 }
 
+export async function updateTrade(formData: FormData) {
+  const { supabase, enrollment } = await teamContext();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/team/ledger?error=missing_id");
+  const { error } = await supabase
+    .schema("elite")
+    .from("trade_ledger")
+    .update({
+      trade_date: str(formData, "trade_date") ?? new Date().toISOString().slice(0, 10),
+      symbol: str(formData, "symbol"),
+      direction: str(formData, "direction"),
+      entry: num(formData, "entry"),
+      stop_loss: num(formData, "stop_loss"),
+      take_profit: num(formData, "take_profit"),
+      position_pct: num(formData, "position_pct"),
+      rationale: str(formData, "rationale"),
+      invalidation: str(formData, "invalidation"),
+      result: str(formData, "result"),
+      attribution: str(formData, "attribution"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("team_id", enrollment.team_id);
+  if (error) redirect(`/team/ledger?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/team/ledger");
+  redirect("/team/ledger?saved=1");
+}
+
 // ── 表三 覆盤 ──
 export async function createReview(formData: FormData) {
   const { supabase, userId, enrollment } = await teamContext();
@@ -147,6 +175,38 @@ export async function createReview(formData: FormData) {
       repeated_note: str(formData, "repeated_note"),
       created_by: userId,
     });
+  if (error) redirect(`/team/reviews?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/team/reviews");
+  redirect("/team/reviews?saved=1");
+}
+
+export async function updateReview(formData: FormData) {
+  const { supabase, enrollment } = await teamContext();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/team/reviews?error=missing_id");
+  const predictions = {
+    env: { pred: str(formData, "env_pred"), actual: str(formData, "env_actual"), hit: formData.get("env_hit") === "on" },
+    market: { pred: str(formData, "market_pred"), actual: str(formData, "market_actual"), hit: formData.get("market_hit") === "on" },
+    symbol: { pred: str(formData, "symbol_pred"), actual: str(formData, "symbol_actual"), hit: formData.get("symbol_hit") === "on" },
+    execution: { pred: str(formData, "exec_pred"), actual: str(formData, "exec_actual"), hit: formData.get("exec_hit") === "on" },
+  };
+  const { error } = await supabase
+    .schema("elite")
+    .from("reviews")
+    .update({
+      review_date: str(formData, "review_date") ?? new Date().toISOString().slice(0, 10),
+      predictions,
+      pnl: str(formData, "pnl"),
+      attribution: str(formData, "attribution"),
+      lesson: str(formData, "lesson"),
+      root_cause: str(formData, "root_cause"),
+      guardrail: str(formData, "guardrail"),
+      repeated: formData.get("repeated") === "on",
+      repeated_note: str(formData, "repeated_note"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("team_id", enrollment.team_id);
   if (error) redirect(`/team/reviews?error=${encodeURIComponent(error.message)}`);
   revalidatePath("/team/reviews");
   redirect("/team/reviews?saved=1");

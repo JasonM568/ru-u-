@@ -1,17 +1,8 @@
 import { requireEnrollment } from "@/lib/auth";
-import {
-  Card,
-  PageHeader,
-  Field,
-  Input,
-  Textarea,
-  EmptyState,
-  LinkButton,
-  Badge,
-} from "@/components/ui";
-import { SubmitButton } from "@/components/SubmitButton";
+import { Card, PageHeader, EmptyState, LinkButton, Badge } from "@/components/ui";
 import { teamName } from "@/lib/constants";
-import { createReview } from "../actions";
+import { createReview, updateReview } from "../actions";
+import { ReviewForm } from "./ReviewForm";
 
 type Pred = { pred?: string | null; actual?: string | null; hit?: boolean };
 type Predictions = { env?: Pred; market?: Pred; symbol?: Pred; execution?: Pred };
@@ -59,64 +50,7 @@ export default async function ReviewsPage({
             <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
               ＋ 新增一次覆盤
             </summary>
-            <form action={createReview} className="mt-4 space-y-4">
-              <Field label="覆盤日期" required>
-                <Input type="date" name="review_date" required />
-              </Field>
-
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  1. 預測 vs 實際
-                </p>
-                <div className="space-y-3">
-                  {[
-                    { k: "env", label: "環境方向" },
-                    { k: "market", label: "大盤走勢" },
-                    { k: "symbol", label: "個股／標的" },
-                    { k: "exec", label: "進出場執行" },
-                  ].map((row) => (
-                    <div key={row.k} className="grid items-center gap-2 sm:grid-cols-[90px_1fr_1fr_auto]">
-                      <span className="text-xs text-slate-500">{row.label}</span>
-                      <Input name={`${row.k}_pred`} placeholder="當初預測" />
-                      <Input name={`${row.k}_actual`} placeholder="實際結果" />
-                      <label className="flex items-center gap-1 text-xs text-slate-500">
-                        <input type="checkbox" name={`${row.k}_hit`} /> 命中
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="本期賺賠（模擬）">
-                  <Input name="pnl" />
-                </Field>
-                <Field label="真正原因拆解" hint="環境 / 選股 / 時機 / 執行">
-                  <Input name="attribution" />
-                </Field>
-              </div>
-
-              <Field label="這次的教訓">
-                <Textarea name="lesson" />
-              </Field>
-              <Field label="根本原因">
-                <Textarea name="root_cause" />
-              </Field>
-              <Field label="下次的護欄" hint="要新增什麼規則來避免重犯">
-                <Textarea name="guardrail" />
-              </Field>
-
-              <div className="rounded-lg bg-slate-50 p-3">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input type="checkbox" name="repeated" /> 是否重複犯了同樣的錯？（勾選＝之前也發生過，代表護欄沒建好）
-                </label>
-                <div className="mt-2">
-                  <Textarea name="repeated_note" placeholder="說明" />
-                </div>
-              </div>
-
-              <SubmitButton>儲存覆盤</SubmitButton>
-            </form>
+            <ReviewForm action={createReview} />
           </details>
         </Card>
       )}
@@ -147,6 +81,19 @@ export default async function ReviewsPage({
                   <RRow label="下次護欄" value={r.guardrail} />
                   {r.repeated && <RRow label="重複犯錯說明" value={r.repeated_note} />}
                 </dl>
+                {canWrite && (
+                  <details className="mt-4 border-t border-slate-200 pt-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
+                      ✏️ 編輯此紀錄（同隊皆可修改）
+                    </summary>
+                    <ReviewForm action={updateReview} review={r} />
+                  </details>
+                )}
+                {r.updated_at && (
+                  <p className="mt-2 text-right text-xs text-slate-400">
+                    最後更新：{new Date(r.updated_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}
+                  </p>
+                )}
               </Card>
             );
           })
