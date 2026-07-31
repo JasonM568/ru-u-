@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-31　新增課程影片區（/videos）
+
+**需求**：平台原本沒有影片區。評估後採「影片放外部平台（YouTube 未列出 / Vimeo）、系統只做嵌入」方案——零流量成本，避免吃 Supabase Pro 與 QBC 共用的 250GB/月 egress。
+
+**完成**
+
+- 新表 **`elite.course_videos`**（第 9 張，MCP `apply_migration`，純新增）：category/title/url/note/created_by。RLS 比照教材表：講師 insert/update/delete、名冊內學員 select。
+- `/videos` 頁：講師貼 YouTube/Vimeo 連結＋標題＋分類（沿用教材四分類）＋選填說明；學員看嵌入播放器（雙欄卡片）。講師可移除。導覽列加「課程影片」（學員/講師皆可見）。
+- `lib/video.ts`：網址 → 嵌入 URL 解析（youtu.be／watch?v=／shorts／live／embed／vimeo.com/id／未列出 vimeo id/hash；YouTube 保留 t= 起始時間，走 youtube-nocookie 網域）。無法辨識的網址在新增時擋下；舊資料若解析失敗則顯示外開連結。
+
+**備註**：影片「未列出」連結若外流仍可觀看；如需嚴格防外流，再議 Vimeo 網域鎖定（限 elite.huangxi.info 嵌入）。
+
+---
+
 ## 2026-07-31　團隊三表全面開放同隊共同編輯
 
 **需求**：三表原本一旦送出就不能改。改為以小組為單位，同隊成員皆可編輯已發佈的紀錄。

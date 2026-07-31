@@ -15,6 +15,7 @@ export function AppNav({
   const links: { href: string; label: string }[] = [
     { href: "/", label: "儀表板" },
     { href: "/materials", label: "課程教材" },
+    { href: "/videos", label: "課程影片" },
   ];
   if (!isInstructor) {
     links.push({ href: "/questionnaire", label: "職務問卷" });
