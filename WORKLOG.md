@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-07-19　課程教材上傳/下載功能（/materials）
+
+**完成**
+
+- 新增 `/materials` 頁：講師上傳教材、全班學員下載。導覽列加「課程教材」。
+- 支援格式 txt/jpg/png/webp/pdf/zip，單檔上限 **30MB**（初版 20MB，同日調高）。
+- 儲存：瀏覽器直傳 Supabase Storage 私有 bucket **`elite-materials`**，metadata 存 **`elite.course_materials`** 表（第 8 張表）。schema 變更沿用專案慣例：MCP `apply_migration` 直打正式庫，repo 無 migration 檔。
+- RLS：講師 insert/delete；名冊內學員 select。下載走 **1 小時 signed URL**。
+- 教材依分類分組：課前資料／Day 1／Day 2／補充教材（`lib/constants.ts`）。
+- 防呆：上傳同名檔案先跳提醒，確認後才能重複上傳（提醒制，非硬性禁止）。
+
+**已討論但暫緩**：下載紀錄追蹤（誰下載過哪個檔案）——需 `elite.material_downloads` 表＋下載改走系統端點記錄再轉址。設計方案在 2026-07-19 對話。
+
+---
+
 ## 2026-07-10（下半場）　功能調整 · 品牌改版 · 修正
 
 **功能調整（依使用者回饋）**

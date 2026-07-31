@@ -1,6 +1,6 @@
 # HANDOFF — 菁英班孵化系統 1.0
 
-> 交班單。最後更新：2026-07-10。維護前先讀這份 + `CLAUDE.md`。
+> 交班單。最後更新：2026-07-31。維護前先讀這份 + `CLAUDE.md`。
 
 ## 這是什麼
 
@@ -29,8 +29,10 @@ Next.js 16（App Router，**middleware 已改名 `proxy.ts`**）＋ TypeScript �
 
 ⚠️ 這是**共用正式庫**（239 會員的 daily_reports/points 等都在裡面）。本系統所有表都隔離在獨立 **`elite` schema**，**絕不可污染 `public`**。
 
-**7 張表**（`elite.` schema）：
-`enrollments`（名冊＝權限來源）、`questionnaire_responses`（問卷）、`assessments`（成果驗收，講師 only）、`team_meetings`、`trade_ledger`、`reviews`（團隊三表）、`process_notes`（孵化過程，講師 only）。
+**8 張表**（`elite.` schema）：
+`enrollments`（名冊＝權限來源）、`questionnaire_responses`（問卷）、`assessments`（成果驗收，講師 only）、`team_meetings`、`trade_ledger`、`reviews`（團隊三表）、`process_notes`（孵化過程，講師 only）、`course_materials`（教材 metadata）。
+
+**Storage**：私有 bucket `elite-materials`（課程教材，2026-07-19 新增）。講師上傳（txt/jpg/png/webp/pdf/zip，單檔 30MB）、名冊內學員下載（1 小時 signed URL）。同名檔案上傳前有提醒防呆。schema/bucket 變更是用 MCP `apply_migration` 直打正式庫，repo 內無 migration 檔（專案慣例）。⚠️ 該 Supabase 專案掛在「TJ's projects」組織 **Pro 方案**（月含 250GB egress），教材下載流量計入、與 QBC 全站共用。
 
 **RLS 鐵則（已實測雙向通過）**：
 - `assessments`、`process_notes` → **只有講師有政策**，學員在資料庫層即讀不到（0 筆）。
@@ -60,7 +62,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 ## 路由
 
-- 學員：`/`（儀表板）、`/questionnaire`、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
+- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
 - 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/process-notes`、`/admin/schedule`
 - 公開：`/login`、`/not-enrolled`
 - 權限閘門：`proxy.ts`（未登入→login）；`lib/auth.ts` 的 `requireEnrollment()`／`requireInstructor()`（頁面層）
@@ -95,6 +97,7 @@ QEC 深藏藍 × 金奢華風。色票在 `app/globals.css` 用 Tailwind `@theme
 - [ ] 使用者跑完整功能/驗收測試，回報 bug → 修 → push → 自動部署
 - [ ] 正式開課前完整清理測試資料（清空「學院測試」問卷/團隊紀錄）
 - [ ] 課前：講師在 `/admin/roster` 幫 8 位真實學員分隊、課後依問卷指派職務
+- [ ] 暫緩功能：教材下載紀錄追蹤（誰下載過哪個檔案）——需 `elite.material_downloads` 表＋下載改走系統端點記錄再轉址（設計方案在 2026-07-19 對話）
 - 現況名冊：9 學員（吳旻玹/桂平宇/楊世祺/莊富翔/陳俐瑾/陳建中/黃大正/黃淑珮/學院測試）＋ 3 講師（陳孟宏/顧及然/梁舒庭）。「測試點數」已移除。多數學員未分隊未填問卷（課前狀態）
 - 帳密：兩站同帳密、密碼單向雜湊不可查；不做臨時密碼，忘記密碼走 course 平台重設
 - ⚠️ 非本專案：該 Supabase 有 44 張 ERP 表 RLS 未開（既有問題），本系統未觸碰
