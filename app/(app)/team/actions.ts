@@ -59,6 +59,43 @@ export async function createMeeting(formData: FormData) {
   redirect("/team/meetings?saved=1");
 }
 
+export async function updateMeeting(formData: FormData) {
+  const { supabase, enrollment } = await teamContext();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/team/meetings?error=missing_id");
+  const { error } = await supabase
+    .schema("elite")
+    .from("team_meetings")
+    .update({
+      meet_date: str(formData, "meet_date") ?? new Date().toISOString().slice(0, 10),
+      host: str(formData, "host"),
+      attendees:
+        formData.getAll("attendees").map(String).filter(Boolean).join("、") || null,
+      env_tone: str(formData, "env_tone"),
+      candidate: str(formData, "candidate"),
+      market_read: str(formData, "market_read"),
+      timing: str(formData, "timing"),
+      allocation: str(formData, "allocation"),
+      execution: str(formData, "execution"),
+      risk_check: {
+        stop_loss: formData.get("rc_stop_loss") === "on",
+        within_limit: formData.get("rc_within_limit") === "on",
+        five_rules: formData.get("rc_five_rules") === "on",
+      },
+      risk_officer_note: str(formData, "risk_officer_note"),
+      decision: str(formData, "decision"),
+      decision_reason: str(formData, "decision_reason"),
+      invalidation: str(formData, "invalidation"),
+      watch_next: str(formData, "watch_next"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("team_id", enrollment.team_id);
+  if (error) redirect(`/team/meetings?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/team/meetings");
+  redirect("/team/meetings?saved=1");
+}
+
 // ── 表二 決策台帳 ──
 export async function createTrade(formData: FormData) {
   const { supabase, userId, enrollment } = await teamContext();
