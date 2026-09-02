@@ -89,8 +89,8 @@ function Section({
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/40">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{title}</h4>
-        <span className="text-[11px] text-slate-400">{from}</span>
+        <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-600">{title}</h4>
+        <span className="text-sm text-slate-400">{from}</span>
       </div>
       <div className="space-y-3 p-3">{children}</div>
     </div>
@@ -160,7 +160,7 @@ export function ThesisCardForm({
           />
         </Field>
         {len > 40 && (
-          <p className="text-xs text-rose-600">
+          <p className="text-sm text-rose-600">
             超過 40 字。講不清楚代表想不清楚——先想清楚再壓縮，不要只是刪字。
           </p>
         )}
@@ -192,7 +192,7 @@ export function ThesisCardForm({
             </Field>
           </div>
         ))}
-        <p className="text-xs text-slate-400">
+        <p className="text-sm text-slate-400">
           三個證據最好來自三個不同角度：一個財報數字、一個公司揭露、一個產業側面。全部來自財報，等於只有一個角度。
         </p>
       </Section>
@@ -234,7 +234,7 @@ export function ThesisCardForm({
             </Field>
           </div>
         ))}
-        <p className={`text-xs ${toneClass}`}>{fs.message}</p>
+        <p className={`text-sm ${toneClass}`}>{fs.message}</p>
       </Section>
 
       <Section title="四、最大單一雷點" from="來自 L3 風險情境．如果只能擔心一件事">
@@ -307,7 +307,7 @@ export function ThesisCardForm({
         </div>
 
         {c.pass === false && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+          <p className="rounded-lg bg-rose-50 px-3 py-2 text-base font-medium text-rose-700">
             合計確認成本吃掉超過三分之一的預期報酬 → 回 L3 換標的。不管公司多好、價格多便宜。
           </p>
         )}
@@ -382,7 +382,7 @@ export function ThesisCardForm({
             />
           </Field>
         </div>
-        <p className="text-xs text-slate-400">事前寫好，不是當下才想。</p>
+        <p className="text-sm text-slate-400">事前寫好，不是當下才想。</p>
       </Section>
 
       <Section title="七、我可能錯在哪" from="自己寫．最難，也最重要">
@@ -393,7 +393,7 @@ export function ThesisCardForm({
             onChange={(e) => set((t) => void (t.weakness = e.target.value))}
           />
         </Field>
-        <p className="text-xs leading-relaxed text-slate-400">
+        <p className="text-sm leading-relaxed text-slate-400">
           ✕「市場競爭可能加劇」——那是公司的風險。
           <br />
           ○「我把交期長當成護城河，但交期長也可能只是產能不足的暫時現象。」
@@ -403,7 +403,7 @@ export function ThesisCardForm({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="btn-gold rounded-lg px-4 py-2 text-sm"
+          className="btn-gold rounded-lg px-4 py-2 text-base"
           onClick={async () => {
             try {
               await navigator.clipboard.writeText(thesisText(tc));
@@ -417,7 +417,7 @@ export function ThesisCardForm({
         </button>
         <button
           type="button"
-          className="btn-ghost rounded-lg px-4 py-2 text-sm"
+          className="btn-ghost rounded-lg px-4 py-2 text-base"
           onClick={() => {
             if (!window.confirm("清空這張論點卡？其他層的交棒卡不受影響。")) return;
             update((d) => {
@@ -490,8 +490,8 @@ function CalcBox({
     tone === "ok" ? "text-emerald-700" : tone === "bad" ? "text-rose-700" : "text-slate-900";
   return (
     <div className={`rounded-lg border px-3 py-2 ${box}`}>
-      <div className="text-[10px] uppercase tracking-wider text-slate-400">{label}</div>
-      <div className={`text-lg font-medium tabular-nums ${text}`}>{value}</div>
+      <div className="text-sm uppercase tracking-wider text-slate-400">{label}</div>
+      <div className={`text-xl font-medium tabular-nums ${text}`}>{value}</div>
     </div>
   );
 }
@@ -499,13 +499,13 @@ function CalcBox({
 function AttackMap() {
   return (
     <div className="space-y-2">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+      <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
         交叉詰問攻擊地圖
       </h4>
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white/40">
-        <table className="w-full min-w-[560px] border-collapse text-xs">
+        <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400">
+            <tr className="text-left text-sm uppercase tracking-wider text-slate-400">
               <th className="border-b border-slate-200 px-3 py-2">攻擊點</th>
               <th className="border-b border-slate-200 px-3 py-2">對手隊會問</th>
               <th className="border-b border-slate-200 px-3 py-2">什麼樣的回答算過關</th>
@@ -524,12 +524,12 @@ function AttackMap() {
           </tbody>
         </table>
       </div>
-      <ul className="space-y-1 text-xs text-slate-400">
+      <ul className="space-y-1 text-sm text-slate-400">
         {ATTACK_FORBIDDEN.map((x) => (
           <li key={x}>— {x}</li>
         ))}
       </ul>
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-sm leading-relaxed text-slate-400">
         交叉詰問的目的不是駁倒對方，是幫他找出論點裡自己看不到的洞。被問倒的人如果當場把缺口記下來，這一輪就成功了。
       </p>
     </div>

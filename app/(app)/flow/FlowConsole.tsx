@@ -183,12 +183,12 @@ export function FlowConsole({ userId }: { userId: string }) {
   const elsewhere = state.ticker && !seed ? locateTicker(state, state.ticker) : [];
 
   return (
-    <div>
+    <div className="flow-console">
       <PageHeader
         title="五層作業流控制台"
         subtitle="AI 供應鏈．八道指令交棒版　輸入股票代號，產生每一層要用的指令與檢核"
         action={
-          <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-xs" onClick={exportLog}>
+          <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-sm" onClick={exportLog}>
             匯出作業紀錄
           </button>
         }
@@ -266,7 +266,7 @@ export function FlowConsole({ userId }: { userId: string }) {
 
         <div className="gold-rule my-4" />
 
-        <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+        <div className="flex flex-wrap gap-x-8 gap-y-3 text-base">
           <Summary k="產業鏈名稱" v={group.chain} note="用於 L0 第 ④ 項" />
           <Summary k="子段" v={`${subs.length} 段`} note={subNames(state).join("／") || "—"} />
           <Summary k="掃描檔數" v={String(count)} note="L1／L2 前置用" />
@@ -296,7 +296,7 @@ export function FlowConsole({ userId }: { userId: string }) {
       </Card>
 
       {offList && (
-        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-base text-rose-700">
           <b>「{state.ticker}」不在本表的 74 檔 AI 供應鏈清單裡。</b>
           <p className="mt-1 leading-relaxed">
             下面八道指令用的仍然是「{group.name}」這個群組的名單，跟你輸入的代號沒有關係——直接複製會跑錯標的。
@@ -308,8 +308,8 @@ export function FlowConsole({ userId }: { userId: string }) {
 
       {/* 五個鐵則 */}
       <Card className="mb-4">
-        <h2 className="font-display mb-3 text-base text-slate-800">五個鐵則</h2>
-        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-slate-600">
+        <h2 className="font-display mb-3 text-lg text-slate-800">五個鐵則</h2>
+        <ol className="list-decimal space-y-1.5 pl-5 text-base text-slate-600">
           {IRON_RULES.map(([head, body]) => (
             <li key={head}>
               <b className="text-slate-800">{head}</b>
@@ -319,9 +319,9 @@ export function FlowConsole({ userId }: { userId: string }) {
         </ol>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-sm">
+          <table className="w-full min-w-[520px] border-collapse text-base">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400">
+              <tr className="text-left text-sm uppercase tracking-wider text-slate-400">
                 <th className="border-b border-slate-200 px-2 py-2">最常犯的錯</th>
                 <th className="border-b border-slate-200 px-2 py-2">會發生什麼</th>
                 <th className="border-b border-slate-200 px-2 py-2">怎麼防</th>
@@ -339,8 +339,8 @@ export function FlowConsole({ userId }: { userId: string }) {
           </table>
         </div>
 
-        <h2 className="font-display mt-5 mb-2 text-base text-slate-800">今晚帶走三件事</h2>
-        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-slate-600">
+        <h2 className="font-display mt-5 mb-2 text-lg text-slate-800">這個作業流程讓你帶走三件事</h2>
+        <ol className="list-decimal space-y-1.5 pl-5 text-base text-slate-600">
           {TAKEAWAYS.map(([head, body]) => (
             <li key={head}>
               <b className="text-slate-800">{head}</b>
@@ -348,7 +348,7 @@ export function FlowConsole({ userId }: { userId: string }) {
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">
+        <p className="mt-3 text-base leading-relaxed text-slate-600">
           這套流程的價值不在於它告訴你買什麼，而在於它逼你把「我憑什麼」拆成八個可以分別被攻擊的環節。
           任何一個環節的證據不夠，整條就停在那裡——這比跑出一個答案有用得多。
         </p>
@@ -370,7 +370,7 @@ export function FlowConsole({ userId }: { userId: string }) {
       ))}
 
       {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-slate-50 shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-base text-slate-50 shadow-lg">
           {toast}
         </div>
       )}
@@ -392,9 +392,9 @@ function Summary({
   const color = tone === "bad" ? "text-rose-600" : tone === "warn" ? "text-amber-600" : "text-slate-800";
   return (
     <div className="flex min-w-[110px] flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-slate-400">{k}</span>
-      <b className={`text-sm font-medium ${color}`}>{v}</b>
-      <span className="text-[11px] text-slate-400">{note}</span>
+      <span className="text-sm uppercase tracking-wider text-slate-400">{k}</span>
+      <b className={`text-base font-medium ${color}`}>{v}</b>
+      <span className="text-sm text-slate-400">{note}</span>
     </div>
   );
 }
@@ -441,35 +441,35 @@ function StationBlock({
           })
         }
       >
-        <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+        <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-700">
           {st.no}
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <b className="font-display text-base text-slate-800">{st.title}</b>
-          <span className="text-xs text-slate-400">
+          <b className="font-display text-lg text-slate-800">{st.title}</b>
+          <span className="text-sm text-slate-400">
             {st.tool}
             {st.parallel ? `　｜　${st.parallel}` : ""}
           </span>
         </span>
-        <span className={`text-xs tabular-nums ${flagClass}`}>{status.label}</span>
+        <span className={`text-sm tabular-nums ${flagClass}`}>{status.label}</span>
         <span className="text-slate-400">{open ? "▾" : "▸"}</span>
       </button>
 
       {open && (
         <div className="mt-4 space-y-5 border-t border-slate-200 pt-4">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-600">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-base text-slate-600">
             <span>
-              <b className="mr-1.5 text-[10px] uppercase tracking-wider text-slate-400">輸入</b>
+              <b className="mr-1.5 text-base font-semibold text-slate-500">輸入</b>
               {st.input}
             </span>
             <span>
-              <b className="mr-1.5 text-[10px] uppercase tracking-wider text-slate-400">輸出</b>
+              <b className="mr-1.5 text-base font-semibold text-slate-500">輸出</b>
               {st.output}
             </span>
           </div>
 
           {missing.length > 0 && (
-            <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="rounded-lg bg-rose-50 px-3 py-2 text-base text-rose-700">
               上游還沒交棒：缺 {missing.map((c) => CARD_LABEL[c]).join("、")}
               。指令裡會留著佔位符，先把上一層跑完再複製。
             </div>
@@ -477,31 +477,31 @@ function StationBlock({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                 {st.form ? "起草指令（選用）" : "指令"}
               </h3>
               <button
                 type="button"
-                className="btn-ghost rounded px-2.5 py-1 text-xs"
+                className="btn-ghost rounded px-2.5 py-1 text-sm"
                 onClick={() => void copy(prompt, `已複製「${st.title}」指令`)}
               >
                 複製指令
               </button>
             </div>
-            <pre className="max-h-[420px] overflow-auto rounded-lg border border-slate-200 border-l-2 border-l-amber-500 bg-white/40 px-4 py-3 text-xs leading-relaxed whitespace-pre-wrap text-slate-700">
+            <pre className="max-h-[420px] overflow-auto rounded-lg border border-slate-200 border-l-2 border-l-amber-500 bg-white/40 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
               {prompt}
             </pre>
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
               注意事項
             </h3>
             <ul className="space-y-2">
               {st.notes.map((n, i) => (
                 <li
                   key={i}
-                  className={`border-l-2 pl-3 text-sm leading-relaxed ${
+                  className={`border-l-2 pl-3 text-base leading-relaxed ${
                     n.key ? "border-amber-500 text-slate-700" : "border-slate-300 text-slate-600"
                   }`}
                 >
@@ -513,7 +513,7 @@ function StationBlock({
 
           {st.id === "L0" && (
             <div className="space-y-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                 掃描名單
               </h3>
               <RosterEditor state={state} update={update} notify={notify} />
@@ -522,7 +522,7 @@ function StationBlock({
 
           {st.id === "L2" && (
             <div className="space-y-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                 分組門檻參考
               </h3>
               <ThresholdTable subs={subs} />
@@ -535,10 +535,10 @@ function StationBlock({
           {st.form && (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                   論點卡
                 </h3>
-                <span className="text-[11px] text-slate-400">目前存在這台裝置的瀏覽器裡</span>
+                <span className="text-sm text-slate-400">目前存在這台裝置的瀏覽器裡</span>
               </div>
               <ThesisCardForm state={state} update={update} notify={notify} />
             </div>
@@ -546,10 +546,10 @@ function StationBlock({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                 輸出檢核
               </h3>
-              <span className="text-[11px] text-slate-400">全部勾完才算這一層跑完</span>
+              <span className="text-sm text-slate-400">全部勾完才算這一層跑完</span>
             </div>
             <ul className="space-y-0.5">
               {st.checks.map((c, i) => {
@@ -571,7 +571,7 @@ function StationBlock({
                     />
                     <label
                       htmlFor={`ck-${id}`}
-                      className={`cursor-pointer text-sm leading-relaxed ${
+                      className={`cursor-pointer text-base leading-relaxed ${
                         on ? "text-slate-400 line-through" : "text-slate-600"
                       }`}
                     >
@@ -599,16 +599,16 @@ function StationBlock({
           {st.card && (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                   貼回 {CARD_LABEL[st.card]}
                 </h3>
-                <span className="text-[11px] text-slate-400">貼進來，下游指令會自動帶入</span>
+                <span className="text-sm text-slate-400">貼進來，下游指令會自動帶入</span>
               </div>
               <textarea
                 value={state.cards[st.card] ?? ""}
                 rows={6}
                 placeholder={`把 AI 產出的【${CARD_LABEL[st.card]}】整段貼在這裡…`}
-                className="w-full rounded-lg border border-slate-200 bg-[#0c1730] px-3 py-2 font-mono text-xs leading-relaxed text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-[color:var(--gold)] focus:ring-2 focus:ring-[rgba(203,161,75,0.25)]"
+                className="w-full rounded-lg border border-slate-200 bg-[#0c1730] px-3 py-2 font-mono text-sm leading-relaxed text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-[color:var(--gold)] focus:ring-2 focus:ring-[rgba(203,161,75,0.25)]"
                 onChange={(e) => {
                   const v = e.target.value;
                   const id = st.card as CardId;
@@ -655,12 +655,12 @@ function GateBlock({
         }}
       />
       <div className="space-y-2 px-4 py-3">
-        <div className="text-sm font-medium text-slate-800">硬閘門｜{gate.question}</div>
+        <div className="text-base font-medium text-slate-800">硬閘門｜{gate.question}</div>
         <div className="flex flex-wrap gap-2">
           {gate.options.map((o) => (
             <label
               key={o}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600"
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-600"
             >
               <input
                 type="radio"
@@ -675,7 +675,7 @@ function GateBlock({
           ))}
         </div>
         {value && (
-          <p className={`text-sm leading-relaxed ${tripped ? "text-rose-700" : "text-emerald-700"}`}>
+          <p className={`text-base leading-relaxed ${tripped ? "text-rose-700" : "text-emerald-700"}`}>
             {tripped ? gate.badMessage : gate.okMessage}
           </p>
         )}
@@ -694,15 +694,15 @@ function MigrationPanels() {
     <div className="space-y-5">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
             瓶頸要搬家之前：四個前兆
           </h3>
-          <span className="text-[11px] text-slate-400">按出現順序排</span>
+          <span className="text-sm text-slate-400">按出現順序排</span>
         </div>
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white/40">
-          <table className="w-full min-w-[620px] border-collapse text-xs">
+          <table className="w-full min-w-[620px] border-collapse text-sm">
             <thead>
-              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400">
+              <tr className="text-left text-sm uppercase tracking-wider text-slate-400">
                 <th className="border-b border-slate-200 px-3 py-2">前兆</th>
                 <th className="border-b border-slate-200 px-3 py-2">SLT 層級</th>
                 <th className="border-b border-slate-200 px-3 py-2">能不能當進場條件</th>
@@ -714,7 +714,7 @@ function MigrationPanels() {
               {MIGRATION_SIGNALS.map((m) => (
                 <tr key={m.n}>
                   <td className="border-b border-slate-200 px-3 py-2 whitespace-nowrap text-slate-800">
-                    <span className="mr-1.5 text-[11px] font-semibold text-amber-600">{m.n}</span>
+                    <span className="mr-1.5 text-sm font-semibold text-amber-600">{m.n}</span>
                     {m.signal}
                   </td>
                   <td className={`border-b border-slate-200 px-3 py-2 whitespace-nowrap ${tone[m.layer]}`}>
@@ -728,7 +728,7 @@ function MigrationPanels() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs leading-relaxed text-slate-600">
+        <p className="text-sm leading-relaxed text-slate-600">
           超額利潤會搬家，而且它搬走的時候，財報是最後才知道的。抓到遷移的時點，比抓到個股重要。
           這四個訊號正好可以用 SLT 三層分級套：前兩個是領先層（可作觸發器），第三個同步層（只能加權），第四個落後層（禁止當進場條件）。
         </p>
@@ -736,10 +736,10 @@ function MigrationPanels() {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
             租金三階段
           </h3>
-          <span className="text-[11px] text-slate-400">交集判「矛盾」時，用這張表分辨解釋 A 還是 B</span>
+          <span className="text-sm text-slate-400">交集判「矛盾」時，用這張表分辨解釋 A 還是 B</span>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           {RENT_PHASES.map((r) => {
@@ -757,15 +757,15 @@ function MigrationPanels() {
                   : "text-rose-600";
             return (
               <div key={r.key} className={`space-y-1 rounded-xl border bg-white/40 px-3 py-3 ${border}`}>
-                <b className="font-display text-sm text-slate-800">{r.key}</b>
-                <p className="text-xs text-slate-600">{r.feature}</p>
-                <p className="text-xs text-slate-600">{r.money}</p>
-                <p className={`text-sm font-medium ${act}`}>{r.action}</p>
+                <b className="font-display text-base text-slate-800">{r.key}</b>
+                <p className="text-sm text-slate-600">{r.feature}</p>
+                <p className="text-sm text-slate-600">{r.money}</p>
+                <p className={`text-base font-medium ${act}`}>{r.action}</p>
               </div>
             );
           })}
         </div>
-        <p className="text-xs leading-relaxed text-slate-600">
+        <p className="text-sm leading-relaxed text-slate-600">
           如果 L1 資金指向這一段，但 L2 顯示毛利率已經見頂、擴產宣告變多——那資金不是在提前反應，是在追一段已經結束的行情。
           這就是解釋 B：追消散的租金。千萬別在租金消散之後才進場。
         </p>
@@ -778,15 +778,15 @@ function CrsMatrix() {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
           CRS 分級撤退 × 段位
         </h3>
-        <span className="text-[11px] text-slate-400">燈號升級時，先砍哪一段</span>
+        <span className="text-sm text-slate-400">燈號升級時，先砍哪一段</span>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white/40">
-        <table className="w-full min-w-[520px] border-collapse text-xs">
+        <table className="w-full min-w-[520px] border-collapse text-sm">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400">
+            <tr className="text-left text-sm uppercase tracking-wider text-slate-400">
               {CRS_MATRIX.head.map((h) => (
                 <th key={h} className="border-b border-slate-200 px-3 py-2 whitespace-nowrap">
                   {h}
@@ -812,7 +812,7 @@ function CrsMatrix() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs leading-relaxed text-slate-600">
+      <p className="text-sm leading-relaxed text-slate-600">
         這張表請自己調整——撤退順序取決於你對每一段護城河強度的判斷，上面給的是原則不是答案。
         把它填進你自己的 CRS 分級撤退表之後，燈號就從「風險溫度計」變成「可執行的部位指令」。
       </p>

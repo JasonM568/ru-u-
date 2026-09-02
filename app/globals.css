@@ -119,3 +119,29 @@ body {
     transparent
   );
 }
+
+/* ── 作業流控制台（/flow）：年長學員易讀，共用元件在此頁放大一級 ──
+   本頁自身的 Tailwind 字級已在元件內放大；這裡只補 components/ui.tsx
+   共用元件（PageHeader 副標、Field 標籤與提示、輸入框、Badge、按鈕），
+   範圍限定在 .flow-console 內，其他頁面不受影響。 */
+.flow-console :is(input, textarea, select) {
+  font-size: 1rem; /* 16px，同時避免 iOS 聚焦時自動縮放 */
+}
+.flow-console label > span.block {
+  font-size: 1rem; /* Field 標籤：14 → 16 */
+}
+.flow-console label > span.block + span.block,
+.flow-console label > * + span.block {
+  font-size: 0.875rem; /* Field 提示：12 → 14 */
+}
+.flow-console h1 + p {
+  font-size: 1rem; /* PageHeader 副標：14 → 16 */
+}
+.flow-console h2 + p {
+  font-size: 0.875rem; /* SectionTitle 提示：12 → 14 */
+}
+.flow-console button {
+  font-size: 0.875rem; /* 共用按鈕最小 14px；元件內自帶較大字級者不受影響 */
+}
+.flow-console button.text-base { font-size: 1rem; }
+.flow-console button.text-lg { font-size: 1.125rem; }

@@ -1,6 +1,6 @@
 # SPEC — 五層作業流控制台（/flow）
 
-> 版本：階段一完成（2026-09-02）｜分支 `feat/flow-console`，**尚未合併 main**
+> 版本：階段一完成（2026-09-02）｜分支 `feat/flow-console`，**尚未合併 main**｜UAT 11 步已於 2026-09-02 通過（見 WORKLOG）
 > 相關：`WORKLOG.md` 2026-09-02、`HANDOFF.md`、教材《AI 供應鏈五層作業流指令串(Elite) v2》
 
 ---

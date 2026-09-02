@@ -90,7 +90,7 @@ export function RosterEditor({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className={edit ? "btn-gold rounded-lg px-3 py-1.5 text-xs" : "btn-ghost rounded-lg px-3 py-1.5 text-xs"}
+          className={edit ? "btn-gold rounded-lg px-3 py-1.5 text-sm" : "btn-ghost rounded-lg px-3 py-1.5 text-sm"}
           onClick={() =>
             update((d) => {
               if (!d.editSplit) ensureCustom(d);
@@ -104,7 +104,7 @@ export function RosterEditor({
           <>
             <button
               type="button"
-              className="btn-ghost rounded-lg px-3 py-1.5 text-xs"
+              className="btn-ghost rounded-lg px-3 py-1.5 text-sm"
               onClick={() =>
                 update((d) => {
                   const c = ensureCustom(d);
@@ -116,7 +116,7 @@ export function RosterEditor({
             </button>
             <button
               type="button"
-              className="btn-ghost rounded-lg px-3 py-1.5 text-xs"
+              className="btn-ghost rounded-lg px-3 py-1.5 text-sm"
               onClick={() => {
                 if (!window.confirm("還原成教材原分段？你自訂的子段名稱與分配會全部清掉。")) return;
                 update((d) => {
@@ -132,13 +132,13 @@ export function RosterEditor({
             </button>
           </>
         )}
-        <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-xs" onClick={exportSplit}>
+        <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-sm" onClick={exportSplit}>
           匯出分段設定
         </button>
-        <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-xs" onClick={importSplit}>
+        <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-sm" onClick={importSplit}>
           匯入分段設定
         </button>
-        <span className="text-xs text-slate-400">
+        <span className="text-sm text-slate-400">
           {state.custom[group.id] ? "目前使用自訂分段" : "目前使用教材原分段"}
         </span>
       </div>
@@ -157,20 +157,20 @@ export function RosterEditor({
         ))}
       </div>
 
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-sm leading-relaxed text-slate-400">
         段位標籤是「先驗」，只是起點，不是結論。實際歸屬要在 L2 用當期財報（毛利率趨勢、ROIC、交期、擴產宣告）驗證後才算數。
         取消勾選的個股與子段不會出現在任何指令裡。
       </p>
 
       {hasAdded && (
         <div className="flex flex-wrap items-start gap-3 rounded-lg border border-dashed border-slate-300 bg-white/40 px-3 py-3">
-          <p className="min-w-[240px] flex-1 text-xs leading-relaxed text-slate-600">
+          <p className="min-w-[240px] flex-1 text-sm leading-relaxed text-slate-600">
             <b className="text-slate-800">標「補」的個股不是教材原表。</b>
             這些是 Claude 依訓練資料（知識截止 2026-05）補進來的，代號、公司名與所屬子段都
             <b className="text-slate-800">需要自行查證一次</b>
             ，也可能有已下市、改名或分類不符的。段位一律標「未定」——先驗判斷是老師的，不代填；請在 L2 用當期財報驗證後自己歸類。
           </p>
-          <label className="flex items-center gap-2 whitespace-nowrap text-xs text-slate-600">
+          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-slate-600">
             <input
               type="checkbox"
               checked={state.originalOnly}
@@ -234,7 +234,7 @@ function SubBlock({
           <input
             type="text"
             value={sub.name}
-            className="font-display max-w-[220px] flex-1 rounded-lg border border-slate-200 bg-[#0c1730] px-2 py-1 text-sm font-bold text-slate-900 outline-none focus:border-[color:var(--gold)]"
+            className="font-display max-w-[220px] flex-1 rounded-lg border border-slate-200 bg-[#0c1730] px-2 py-1 text-base font-bold text-slate-900 outline-none focus:border-[color:var(--gold)]"
             onChange={(e) => {
               const name = e.target.value;
               update((d) => {
@@ -245,16 +245,16 @@ function SubBlock({
             }}
           />
         ) : (
-          <b className="font-display flex-1 text-sm text-slate-800">{sub.name}</b>
+          <b className="font-display flex-1 text-base text-slate-800">{sub.name}</b>
         )}
 
         {sub.origins.length > 1 && (
-          <span className="text-xs text-amber-600">跨 {sub.origins.length} 個原分類</span>
+          <span className="text-sm text-amber-600">跨 {sub.origins.length} 個原分類</span>
         )}
         {addedHere > 0 && !state.originalOnly && (
-          <span className="text-xs text-slate-400">含補 {addedHere}</span>
+          <span className="text-sm text-slate-400">含補 {addedHere}</span>
         )}
-        <span className="text-xs tabular-nums text-slate-400">
+        <span className="text-sm tabular-nums text-slate-400">
           {sub.unassigned
             ? `${sub.stocks.length} 檔未分配`
             : `${activeStocks(state, sub).length}/${sub.stocks.length} 檔`}
@@ -262,7 +262,7 @@ function SubBlock({
         {edit && !sub.unassigned && targets.length > 1 && (
           <button
             type="button"
-            className="btn-ghost rounded px-2 py-1 text-[11px]"
+            className="btn-ghost rounded px-2 py-1 text-sm"
             title="刪除這個子段，個股會移到第一個子段"
             onClick={() =>
               update((d) => {
@@ -284,7 +284,7 @@ function SubBlock({
 
       <div className="flex flex-wrap gap-2 px-3 py-3">
         {sub.stocks.length === 0 && (
-          <span className="text-xs text-slate-400">（空的子段，指令不會列出它）</span>
+          <span className="text-sm text-slate-400">（空的子段，指令不會列出它）</span>
         )}
         {sub.stocks.map((s) => {
           const on = !state.offStocks[stockKey(sub, s)];
@@ -293,7 +293,7 @@ function SubBlock({
             <label
               key={`${s.origin}|${s.code}`}
               title={`${s.added ? "非教材原表，Claude 補充，需自行查證" : "教材原表"}　原分類：${s.origin}`}
-              className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs tabular-nums ${
+              className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-sm tabular-nums ${
                 s.added ? "border-dashed" : ""
               } ${
                 isSeed
@@ -315,17 +315,17 @@ function SubBlock({
                   }}
                 />
               )}
-              <code className="text-[11px] text-slate-400">{s.code}</code>
+              <code className="text-sm text-slate-400">{s.code}</code>
               {s.name}
               {s.added && (
-                <span className="rounded border border-slate-400 px-1 text-[9px] leading-tight text-slate-400">
+                <span className="rounded border border-slate-400 px-1 text-sm leading-tight text-slate-400">
                   補
                 </span>
               )}
               {edit ? (
                 <select
                   value={sub.id ?? ""}
-                  className="max-w-[120px] rounded border border-slate-300 bg-[#0c1730] px-1 py-0.5 text-[11px] text-slate-800"
+                  className="max-w-[120px] rounded border border-slate-300 bg-[#0c1730] px-1 py-0.5 text-sm text-slate-800"
                   onChange={(e) => {
                     const to = e.target.value;
                     update((d) => {
@@ -341,7 +341,7 @@ function SubBlock({
                   ))}
                 </select>
               ) : (
-                <span className={`text-[11px] ${PRIOR_TONE[s.prior] ?? "text-slate-400"}`}>
+                <span className={`text-sm ${PRIOR_TONE[s.prior] ?? "text-slate-400"}`}>
                   {s.prior}
                 </span>
               )}
@@ -360,9 +360,9 @@ export function ThresholdTable({ subs }: { subs: LaidOutSub[] }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white/40 p-3">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs tabular-nums">
+        <table className="w-full border-collapse text-sm tabular-nums">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400">
+            <tr className="text-left text-sm uppercase tracking-wider text-slate-400">
               <th className="border-b border-slate-200 px-2 py-1.5">子段</th>
               <th className="border-b border-slate-200 px-2 py-1.5 text-right">營收 YoY ≥</th>
               <th className="border-b border-slate-200 px-2 py-1.5 text-right">營益 YoY ≥</th>
@@ -405,7 +405,7 @@ export function ThresholdTable({ subs }: { subs: LaidOutSub[] }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-slate-400">
+      <p className="mt-2 text-sm leading-relaxed text-slate-400">
         不同產業不能用同一條及格線。這組數字是一覽表的體質分門檻，L2 判讀時可拿來校準「這個毛利率算高還是低」——但它不是本指令的必要輸入。
         {mixed && (
           <>
