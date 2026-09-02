@@ -7,6 +7,9 @@
  */
 
 import { computeCcc, toNum } from "../lib/flow/ccc";
+import { cardIsEmpty, cardToRow, rowToCard, sanitizeCard, type ThesisCardRow } from "../lib/flow/cloud";
+import { reconcile, reconcileFromStrings, sanitizeChecks } from "../lib/flow/reconcile";
+import { applySplitConfig, buildSplitConfig, sanitizeSplitConfig } from "../lib/flow/config";
 import { SEGMENTS, GROUPS } from "../lib/flow/segments";
 import * as P from "../lib/flow/prompts";
 import {
@@ -269,7 +272,93 @@ function near(a: number | null, b: number, eps = 0.001): boolean {
   return a !== null && Math.abs(a - b) < eps;
 }
 
+// ── 階段二：論點卡上雲的序列化與 server 端重算 ──
+add("sanitizeCard：亂七八糟的輸入會收斂成合法卡，多餘欄位丟掉", () => {
+  const tc = sanitizeCard({ code: " 1519 ", name: "華城", ccMode: "bogus", falsifiers: [{ t: "x", lvl: "亂填" }], evil: 1 });
+  return (
+    tc.code === "1519" && tc.name === "華城" && tc.ccMode === "max" &&
+    tc.evidence.length === 3 && tc.falsifiers.length === 3 &&
+    tc.falsifiers[0].t === "x" && tc.falsifiers[0].lvl === "公司自身" &&
+    !("evil" in tc) && tc.id === undefined
+  );
+});
+add("cardToRow：cc_* 由 server 重算，不信前端（教材範例 100/105/108/0.35 → 22.9% 通過）", () => {
+  const tc = sanitizeCard({ code: "1519", px: "100", p3: "105", p4: "108", expectedReturn: "0.35", ccMode: "max" });
+  const row = cardToRow(tc, { userId: "u1", groupId: "pwr" });
+  return (
+    Math.abs((row.cc_l3 ?? 0) - 0.05) < 1e-9 && Math.abs((row.cc_l4 ?? 0) - 0.08) < 1e-9 &&
+    Math.abs((row.cc_total ?? 0) - 0.08) < 1e-9 && Math.abs((row.cc_ratio ?? 0) - 0.08 / 0.35) < 1e-9 &&
+    row.cc_pass === true && row.user_id === "u1" && row.group_id === "pwr"
+  );
+});
+add("cardToRow：預期報酬 0.15 → 53.3% 本案不成立", () => {
+  const row = cardToRow(sanitizeCard({ code: "1519", px: "100", p3: "105", p4: "108", expectedReturn: "0.15" }), { userId: "u1" });
+  return row.cc_pass === false && Math.abs((row.cc_ratio ?? 0) - 0.08 / 0.15) < 1e-9;
+});
+add("rowToCard ∘ cardToRow：來回不掉欄位", () => {
+  const src = sanitizeCard({ code: "1519", name: "華城", sub: "重電", cls: "瓶頸段", date: "2026/09/02", thesis: "T", bomb: "B",
+    evidence: [{ t: "e1", src: "s", per: "2026Q2" }, { t: "e2", src: "", per: "" }, { t: "", src: "", per: "" }],
+    falsifiers: [{ t: "f1", when: "2026/11", lvl: "供給端" }, { t: "", when: "", lvl: "需求端" }, { t: "", when: "", lvl: "公司自身" }],
+    px: "100", p3: "105", p4: "108", expectedReturn: "0.35", ccMode: "sum", positionForm: "分批", bandLow: "98", bandHigh: "102",
+    tr1: "a", tr2: "b", tr3: "c", positionCap: "10%", crsUp1: "減半", crsUp2: "清倉", weakness: "W" });
+  const row = cardToRow(src, { userId: "u1" });
+  const back = rowToCard({ ...row, id: "id-1", created_at: "", updated_at: "" } as ThesisCardRow);
+  const { id, ...rest } = back;
+  return id === "id-1" && JSON.stringify(rest) === JSON.stringify(src);
+});
+add("cardIsEmpty：空卡不准存；有代號就算有內容", () => cardIsEmpty(sanitizeCard({})) && !cardIsEmpty(sanitizeCard({ code: "1519" })));
+
 let pass = 0;
+// ── 階段三：T+20 對帳四象限（server 端重算） ──
+const F = (a: boolean | null, b: boolean | null, c: boolean | null) =>
+  [a, b, c].map((t) => ({ triggered: t, note: "" }));
+add("對帳：未觸發＋賺 ＝ 論點成立", () => reconcile({ checks: F(false, false, false), executed: null, entryPx: 100, checkPx: 110 }).outcome === "thesis_holds");
+add("對帳：未觸發＋賠 ＝ 證偽條件設計失敗", () => reconcile({ checks: F(false, false, false), executed: null, entryPx: 100, checkPx: 95 }).outcome === "falsifier_design_failed");
+add("對帳：觸發＋執行 ＝ 紀律及格（賺賠不影響）", () => {
+  const r1 = reconcile({ checks: F(true, false, false), executed: true, entryPx: 100, checkPx: 80 });
+  const r2 = reconcile({ checks: F(false, false, true), executed: true, entryPx: 100, checkPx: 120 });
+  return r1.outcome === "discipline_ok" && r2.outcome === "discipline_ok";
+});
+add("對帳：觸發＋未執行 ＝ 紀律失誤", () => reconcile({ checks: F(false, true, false), executed: false, entryPx: null, checkPx: null }).outcome === "discipline_failed");
+add("對帳：有條件未判定且沒有任何一條觸發 → 資料不足", () => {
+  const r = reconcile({ checks: F(false, null, false), executed: null, entryPx: 100, checkPx: 110 });
+  return r.outcome === null && r.anyTriggered === null && !!r.missing;
+});
+add("對帳：只要有一條觸發，其他未判定也算觸發", () => reconcile({ checks: F(null, true, null), executed: true, entryPx: null, checkPx: null }).anyTriggered === true);
+add("對帳：觸發但沒填有沒有執行 → 待填", () => reconcile({ checks: F(true, false, false), executed: null, entryPx: 100, checkPx: 90 }).outcome === null);
+add("對帳：未觸發但沒填價格 → 待填，pnl 為 null", () => { const r = reconcile({ checks: F(false, false, false), executed: null, entryPx: 100, checkPx: null }); return r.outcome === null && r.pnl === null; });
+add("對帳：pnl 用 (對帳價−進場價)/進場價；進場價 0 → null", () => Math.abs((reconcile({ checks: F(false, false, false), executed: null, entryPx: 80, checkPx: 100 }).pnl ?? 0) - 0.25) < 1e-9 && reconcile({ checks: F(false, false, false), executed: null, entryPx: 0, checkPx: 100 }).pnl === null);
+add("sanitizeChecks：非布林一律 null、固定三筆、note 收字串", () => { const c = sanitizeChecks([{ triggered: "yes", note: 5 }, { triggered: true }]); return c.length === 3 && c[0].triggered === null && c[0].note === "" && c[1].triggered === true && c[2].triggered === null; });
+add("reconcileFromStrings：UI 字串入口與數字入口一致", () => reconcileFromStrings({ checks: F(false, false, false), executed: null, entryPx: "100", checkPx: " 110 " }).outcome === "thesis_holds");
+
+// ── 階段四：講師下發分段設定（匯出／匯入／下發共用格式） ──
+add("分段設定：未知群組或版本不對 → null", () => sanitizeSplitConfig({ v: 1, group: "nope" }) === null && sanitizeSplitConfig({ v: 2, group: "pwr" }) === null && sanitizeSplitConfig("x") === null);
+add("分段設定：build → sanitize → apply 來回一致（含自訂子段與 ccMode）", () => {
+  const st = blankState();
+  st.groupId = "pwr";
+  st.custom.pwr = seedCustomSplit(st);
+  const newId = "s_test1";
+  st.custom.pwr.subs.push({ id: newId, name: "新子段" });
+  const firstKey = Object.keys(st.custom.pwr.assign)[0];
+  st.custom.pwr.assign[firstKey] = newId;
+  st.offStocks["pwr|2303"] = true;
+  st.tc.ccMode = "sum";
+  const cfg = sanitizeSplitConfig(JSON.parse(JSON.stringify(buildSplitConfig(st))));
+  if (!cfg) return false;
+  const fresh = blankState();
+  applySplitConfig(fresh, cfg);
+  return (
+    fresh.groupId === "pwr" && fresh.custom.pwr?.subs.some((s) => s.id === newId) &&
+    fresh.custom.pwr?.assign[firstKey] === newId && fresh.offStocks["pwr|2303"] === true &&
+    fresh.tc.ccMode === "sum" && fresh.editSplit === false
+  );
+});
+add("分段設定：assign 指向不存在的子段會被丟掉、offSubs 只收 true", () => {
+  const cfg = sanitizeSplitConfig({ v: 1, group: "pwr", custom: { subs: [{ id: "a", name: "A" }], assign: { "k1": "a", "k2": "ghost" } }, offSubs: { x: true, y: false, z: "yes" } });
+  return !!cfg && cfg.custom?.assign.k1 === "a" && !("k2" in (cfg.custom?.assign ?? {})) && cfg.offSubs.x === true && !("y" in cfg.offSubs) && !("z" in cfg.offSubs);
+});
+add("分段設定：沒有 ccMode 的舊格式套用時不動 ccMode", () => { const fresh = blankState(); fresh.tc.ccMode = "sum"; const cfg = sanitizeSplitConfig({ v: 1, group: "pwr" }); if (!cfg) return false; applySplitConfig(fresh, cfg); return fresh.tc.ccMode === "sum" && fresh.custom.pwr === undefined; });
+
 for (const c of cases) {
   let ok = false;
   let err = "";

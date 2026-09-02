@@ -30,7 +30,7 @@ Next.js 16（App Router，**middleware 已改名 `proxy.ts`**）＋ TypeScript �
 ⚠️ 這是**共用正式庫**（239 會員的 daily_reports/points 等都在裡面）。本系統所有表都隔離在獨立 **`elite` schema**，**絕不可污染 `public`**。
 
 **9 張表**（`elite.` schema）：
-`enrollments`（名冊＝權限來源）、`questionnaire_responses`（問卷）、`assessments`（成果驗收，講師 only）、`team_meetings`、`trade_ledger`、`reviews`（團隊三表）、`process_notes`（孵化過程，講師 only）、`course_materials`（教材 metadata）、`course_videos`（影片連結，2026-07-31 新增；影片本體放 YouTube/Vimeo，系統只存連結做嵌入，不吃 egress）。
+`enrollments`（名冊＝權限來源）、`questionnaire_responses`（問卷）、`assessments`（成果驗收，講師 only）、`team_meetings`、`trade_ledger`、`reviews`（團隊三表）、`process_notes`（孵化過程，講師 only）、`course_materials`（教材 metadata）、`course_videos`（影片連結，2026-07-31 新增；影片本體放 YouTube/Vimeo，系統只存連結做嵌入，不吃 egress）、`thesis_cards`（投資論點卡，2026-09-02 新增；本人＋講師可見，講師不可改，cc_* 由 server 重算）、`thesis_reconciliations`（T+20 對帳，2026-09-02 新增；一卡一筆，四象限由 server 重算，講師只能看）、`flow_configs`（講師下發的分段設定，2026-09-02 新增；一群組一份，講師寫、名冊內讀）。
 
 **Storage**：私有 bucket `elite-materials`（課程教材，2026-07-19 新增）。講師上傳（txt/jpg/png/webp/pdf/zip，單檔 30MB）、名冊內學員下載（1 小時 signed URL）。同名檔案上傳前有提醒防呆。schema/bucket 變更是用 MCP `apply_migration` 直打正式庫，repo 內無 migration 檔（專案慣例）。⚠️ 該 Supabase 專案掛在「TJ's projects」組織 **Pro 方案**（月含 250GB egress），教材下載流量計入、與 QBC 全站共用。
 
@@ -75,8 +75,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 ## 路由
 
-- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線；資料存 localStorage，階段二上雲）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
-- 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/process-notes`、`/admin/schedule`
+- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線）、`/flow/cards`（我的論點卡＋T+20 對帳；階段二～四在 `feat/thesis-cloud`→`feat/thesis-reconcile`→`feat/flow-configs` 待合併）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
+- 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/thesis-cards`（論點卡與 T+20 對帳總覽）、`/admin/process-notes`、`/admin/schedule`
 - 公開：`/login`、`/not-enrolled`
 - 權限閘門：`proxy.ts`（未登入→login）；`lib/auth.ts` 的 `requireEnrollment()`／`requireInstructor()`（頁面層）
 

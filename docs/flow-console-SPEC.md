@@ -64,7 +64,15 @@ npm run test
 | `app/(app)/flow/FlowConsole.tsx` | 控制台主體 |
 | `app/(app)/flow/RosterEditor.tsx` | 掃描名單、自訂分段、門檻表 |
 | `app/(app)/flow/ThesisCardForm.tsx` | 論點卡七欄表單、CCC 試算、攻擊地圖 |
-| `scripts/test-flow.ts` | 31 項純邏輯測試 |
+| `lib/flow/cloud.ts` | 論點卡 ⇄ `elite.thesis_cards` 序列化、server 端重算 cc_*（純函式） |
+| `lib/flow/thesis.ts` | `cccOf`／`thesisText` 純函式（server／client 共用） |
+| `app/(app)/flow/actions.ts` | `saveThesisCard`（回傳 id，不 redirect）／`deleteThesisCard` |
+| `app/(app)/flow/cards/` | 我的論點卡：列表、T+20 對帳表單、載入到控制台、複製、刪除 |
+| `lib/flow/reconcile.ts` | T+20 四象限判定純函式（server 端重算） |
+| `lib/flow/config.ts` | 分段設定格式：匯出／匯入／講師下發共用（build／sanitize／apply） |
+| `app/(app)/flow/PublishedConfigs.tsx` | 講師下發面板：全班套用、講師下發／撤回 |
+| `app/(app)/admin/thesis-cards/page.tsx` | 講師端：全班論點卡與對帳總覽（唯讀） |
+| `scripts/test-flow.ts` | 51 項純邏輯測試 |
 
 ---
 
@@ -127,18 +135,18 @@ npm run test
 
 **階段一（已完成，未合併）**：控制台移植進站，資料存 localStorage（key = `flow5:{userId}`，帶 user_id 所以同一台電腦多人登入不會互蓋）。
 
-**階段二　論點卡上雲**
+**階段二　論點卡上雲**（2026-09-02 完成，分支 `feat/thesis-cloud`，見 WORKLOG）
 - 新表 `elite.thesis_cards`（MCP `apply_migration`，name `elite_thesis_cards`）
 - RLS：學員讀寫自己（`user_id = auth.uid() and elite.is_enrolled()`）；講師 select 全部（`elite.is_instructor()`），**講師不能改學員的卡**
 - `app/(app)/flow/actions.ts` 的 `saveThesisCard`：比照問卷，狀態序列化進 hidden field → server 端 `JSON.parse` → **用 `lib/flow/ccc.ts` 重算 cc_* 五個欄位**後才寫入
 - `app/(app)/flow/cards/page.tsx` 我的論點卡列表
 
-**階段三　講師端與 T+20 對帳**
+**階段三　講師端與 T+20 對帳**（2026-09-02 完成，分支 `feat/thesis-reconcile`，見 WORKLOG）
 - 新表 `elite.thesis_reconciliations`
 - `lib/flow/reconcile.ts` 四象限判定純函式（server 端重算）：未觸發＋賺＝論點成立｜未觸發＋賠＝證偽條件設計失敗（重寫條件，不是換標的）｜觸發＋執行＝紀律及格｜觸發＋未執行＝紀律失誤（最嚴重）
 - `app/(app)/admin/thesis-cards/page.tsx`：比照 `admin/teams/page.tsx`，平行 select ＋ JS 端 Map join 出 display_name
 
-**階段四　分段設定由講師下發**
+**階段四　分段設定由講師下發**（2026-09-02 完成，分支 `feat/flow-configs`，見 WORKLOG）
 - 新表 `elite.flow_configs`，講師寫、名冊內學員讀
 - 目前的替代做法：控制台已有「匯出／匯入分段設定」（一串 JSON，約 700 字），零後端也能讓全班統一
 

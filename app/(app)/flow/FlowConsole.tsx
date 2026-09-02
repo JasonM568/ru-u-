@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, PageHeader, Field, Input, Select } from "@/components/ui";
 import {
@@ -29,6 +30,7 @@ import {
   type FlowState,
 } from "@/lib/flow/state";
 import { RosterEditor, ThresholdTable } from "./RosterEditor";
+import type { PublishedConfig } from "@/lib/flow/config";
 import { ThesisCardForm, cccOf, thesisText } from "./ThesisCardForm";
 
 type StationStatus = { kind: "wait" | "open" | "blocked" | "done"; label: string };
@@ -44,7 +46,15 @@ function loadState(key: string): FlowState {
   return blankState();
 }
 
-export function FlowConsole({ userId }: { userId: string }) {
+export function FlowConsole({
+  userId,
+  isInstructor,
+  configs,
+}: {
+  userId: string;
+  isInstructor: boolean;
+  configs: PublishedConfig[];
+}) {
   const storageKey = `flow5:${userId}`;
   const [state, setState] = useState<FlowState>(() => loadState(storageKey));
   const [toast, setToast] = useState("");
@@ -188,9 +198,14 @@ export function FlowConsole({ userId }: { userId: string }) {
         title="五層作業流控制台"
         subtitle="AI 供應鏈．八道指令交棒版　輸入股票代號，產生每一層要用的指令與檢核"
         action={
-          <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-sm" onClick={exportLog}>
-            匯出作業紀錄
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/flow/cards" className="btn-ghost rounded-lg px-3 py-1.5 text-sm">
+              我的論點卡
+            </Link>
+            <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-sm" onClick={exportLog}>
+              匯出作業紀錄
+            </button>
+          </div>
         }
       />
 
@@ -366,6 +381,8 @@ export function FlowConsole({ userId }: { userId: string }) {
           notify={notify}
           copy={copy}
           subs={subs}
+          configs={configs}
+          isInstructor={isInstructor}
         />
       ))}
 
@@ -408,6 +425,8 @@ function StationBlock({
   notify,
   copy,
   subs,
+  configs,
+  isInstructor,
 }: {
   station: Station;
   state: FlowState;
@@ -417,6 +436,8 @@ function StationBlock({
   notify: (m: string) => void;
   copy: (text: string, msg: string) => Promise<void>;
   subs: ReturnType<typeof activeSubs>;
+  configs: PublishedConfig[];
+  isInstructor: boolean;
 }) {
   const open = state.open[st.id] ?? (st.id === "PRE" || status.kind === "blocked");
   const prompt = st.prompt(ctx);
@@ -516,7 +537,7 @@ function StationBlock({
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                 掃描名單
               </h3>
-              <RosterEditor state={state} update={update} notify={notify} />
+              <RosterEditor state={state} update={update} notify={notify} configs={configs} isInstructor={isInstructor} />
             </div>
           )}
 
@@ -538,7 +559,7 @@ function StationBlock({
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                   論點卡
                 </h3>
-                <span className="text-sm text-slate-400">目前存在這台裝置的瀏覽器裡</span>
+                <span className="text-sm text-slate-400">填完按「儲存到雲端」，換裝置也看得到</span>
               </div>
               <ThesisCardForm state={state} update={update} notify={notify} />
             </div>

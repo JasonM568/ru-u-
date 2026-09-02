@@ -1,7 +1,12 @@
 "use client";
 
 import { Field, Input, Select, Textarea } from "@/components/ui";
-import { computeCcc, pct, toNum, type CccResult } from "@/lib/flow/ccc";
+import { pct } from "@/lib/flow/ccc";
+import { cccOf, thesisText } from "@/lib/flow/thesis";
+import { cardIsEmpty } from "@/lib/flow/cloud";
+import { saveThesisCard } from "./actions";
+import Link from "next/link";
+import { useState, useTransition } from "react";
 import {
   FALSIFIER_LEVELS,
   falsifierStatus,
@@ -13,69 +18,7 @@ import { ATTACK_FORBIDDEN, ATTACK_MAP } from "@/lib/flow/segments";
 const CLASSES = ["", "瓶頸段", "通過段", "被替代段", "循環段", "不歸類（形成期）"];
 const FORMS = ["", "分批", "一次到位", "不進場"];
 
-export function cccOf(tc: ThesisCard): CccResult {
-  return computeCcc({
-    px: toNum(tc.px),
-    p3: toNum(tc.p3),
-    p4: toNum(tc.p4),
-    expectedReturn: toNum(tc.expectedReturn),
-    mode: tc.ccMode,
-  });
-}
-
-/** 論點卡純文字版，給「複製整張卡」與匯出用。 */
-export function thesisText(tc: ThesisCard): string {
-  const c = cccOf(tc);
-  const L: string[] = [];
-  L.push("【投資論點卡】");
-  L.push(`標的：${tc.name || "____"}　　代號：${tc.code || "____"}`);
-  L.push(`子段：${tc.sub || "____"}　　填寫日期：${tc.date || "____"}`);
-  L.push(`分類：${tc.cls || "____"}`);
-  L.push("");
-  L.push("━━ 一、核心論點 ━━");
-  L.push(`${tc.thesis || "____"}　（${[...tc.thesis].length} 字）`);
-  L.push("");
-  L.push("━━ 二、三個支撐證據 ━━");
-  tc.evidence.forEach((e, i) => {
-    L.push(`證據 ${i + 1}：${e.t || "____"}`);
-    L.push(`　來源：${e.src || "____"}　期別：${e.per || "____"}`);
-  });
-  L.push("");
-  L.push("━━ 三、三個證偽條件 ━━");
-  tc.falsifiers.forEach((f, i) => {
-    L.push(`條件 ${i + 1}：若 ${f.t || "____"}，本論點失效`);
-    L.push(`　檢查時點：${f.when || "____"}　涵蓋層次：${f.lvl}`);
-  });
-  L.push("");
-  L.push("━━ 四、最大單一雷點 ━━");
-  L.push(tc.bomb || "____");
-  L.push("");
-  L.push("━━ 五、確認條件成本（CCC）━━");
-  L.push(`現價：${tc.px || "__"}　L3 確認價：${tc.p3 || "__"}　成本：${pct(c.l3)}`);
-  L.push(`L4 確認價：${tc.p4 || "__"}　成本：${pct(c.l4)}`);
-  L.push(
-    `合計確認成本：${pct(c.total)}（${tc.ccMode === "sum" ? "相加" : "取較高者"}）　預期報酬：${
-      tc.expectedReturn ? `${(Number(tc.expectedReturn) * 100).toFixed(1)}%` : "__"
-    }`,
-  );
-  L.push(
-    `合計 ÷ 預期報酬 ＝ ${pct(c.ratio)}　→ ${
-      c.pass === null ? "待填" : c.pass ? "通過（≤33%）" : "本案不成立（>33%）"
-    }`,
-  );
-  L.push("");
-  L.push("━━ 六、部位規劃 ━━");
-  L.push(`形式：${tc.positionForm || "____"}`);
-  L.push(`進場價帶：${tc.bandLow || "__"} ～ ${tc.bandHigh || "__"}`);
-  L.push(`第一段 ${tc.tr1 || "__"}　第二段 ${tc.tr2 || "__"}　第三段 ${tc.tr3 || "__"}`);
-  L.push(`部位上限：佔總資金 ${tc.positionCap || "__"}`);
-  L.push(`CRS 升一級時：${tc.crsUp1 || "____"}`);
-  L.push(`CRS 升兩級時：${tc.crsUp2 || "____"}`);
-  L.push("");
-  L.push("━━ 七、我可能錯在哪 ━━");
-  L.push(tc.weakness || "____");
-  return L.join("\n");
-}
+export { cccOf, thesisText };
 
 function Section({
   title,
@@ -111,6 +54,28 @@ export function ThesisCardForm({
   const len = [...tc.thesis].length;
   const fs = falsifierStatus(tc);
   const set = (fn: (card: ThesisCard) => void) => update((d) => fn(d.tc));
+  const [saving, startSaving] = useTransition();
+  const [savedAt, setSavedAt] = useState<string>("");
+
+  const saveToCloud = () =>
+    startSaving(async () => {
+      if (cardIsEmpty(tc)) {
+        notify("至少填標的代號、名稱或核心論點，再存雲端");
+        return;
+      }
+      const res = await saveThesisCard({
+        card: JSON.stringify(tc),
+        groupId: state.groupId,
+        asOf: state.asOf,
+      });
+      if (!res.ok) {
+        notify(`存雲端失敗：${res.error}`);
+        return;
+      }
+      update((d) => void (d.tc.id = res.id));
+      setSavedAt(res.updatedAt);
+      notify("論點卡已存到雲端");
+    });
 
   const toneClass =
     fs.tone === "bad" ? "text-rose-600" : fs.tone === "warn" ? "text-amber-600" : "text-emerald-600";
@@ -400,10 +365,28 @@ export function ThesisCardForm({
         </p>
       </Section>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="btn-gold rounded-lg px-4 py-2 text-base"
+          className="btn-gold rounded-lg px-4 py-2 text-base disabled:opacity-60"
+          disabled={saving}
+          onClick={saveToCloud}
+        >
+          {saving ? "儲存中…" : tc.id ? "更新雲端這張卡" : "儲存到雲端"}
+        </button>
+        <span className="text-sm text-slate-400">
+          {tc.id ? (
+            <>
+              已存雲端{savedAt ? `（${new Date(savedAt).toLocaleTimeString("zh-TW", { hour12: false })}）` : ""}
+              　<Link href="/flow/cards" className="text-[color:var(--gold)] underline-offset-2 hover:underline">看我的論點卡</Link>
+            </>
+          ) : (
+            "尚未存雲端，目前只在這台裝置的瀏覽器裡"
+          )}
+        </span>
+        <button
+          type="button"
+          className="btn-ghost rounded-lg px-4 py-2 text-base"
           onClick={async () => {
             try {
               await navigator.clipboard.writeText(thesisText(tc));
@@ -422,8 +405,10 @@ export function ThesisCardForm({
             if (!window.confirm("清空這張論點卡？其他層的交棒卡不受影響。")) return;
             update((d) => {
               d.tc = { ...d.tc, ...blankFields() };
+              delete d.tc.id;
             });
-            notify("論點卡已清空");
+            setSavedAt("");
+            notify("論點卡已清空（雲端那張不受影響，這裡變成一張新卡）");
           }}
         >
           清空這張卡
