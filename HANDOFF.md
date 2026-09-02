@@ -62,7 +62,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 ## 五層作業流控制台（/flow）
 
-⚠️ **在 `feat/flow-console` 分支，尚未合併 main。** 完整規格見 `docs/flow-console-SPEC.md`，開發脈絡見 `WORKLOG.md` 2026-09-02。
+✅ **2026-09-02 已合併 main 並上線。** 完整規格見 `docs/flow-console-SPEC.md`，開發脈絡見 `WORKLOG.md` 2026-09-02。
 
 8/30 月例會「AI 供應鏈五層作業流」的線上版：輸入股票代號 → 產出八道指令 → 交棒卡逐層帶入 → 收斂成一張投資論點卡。目前資料存 localStorage（`flow5:{userId}`），**尚未進資料庫**。
 
@@ -75,7 +75,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 ## 路由
 
-- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，**在 feat/flow-console 分支，未上線**）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
+- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線；資料存 localStorage，階段二上雲）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
 - 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/process-notes`、`/admin/schedule`
 - 公開：`/login`、`/not-enrolled`
 - 權限閘門：`proxy.ts`（未登入→login）；`lib/auth.ts` 的 `requireEnrollment()`／`requireInstructor()`（頁面層）
