@@ -16,6 +16,7 @@ export function AppNav({
     { href: "/", label: "儀表板" },
     { href: "/materials", label: "課程教材" },
     { href: "/videos", label: "課程影片" },
+    { href: "/flow", label: "作業流控制台" },
   ];
   if (!isInstructor) {
     links.push({ href: "/questionnaire", label: "職務問卷" });

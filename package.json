@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "flow": "(sleep 4 && open http://localhost:3000/flow) & next dev",
+    "test": "npx tsx scripts/test-scoring.ts && npx tsx scripts/test-flow.ts",
+    "test:flow": "npx tsx scripts/test-flow.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
