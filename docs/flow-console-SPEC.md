@@ -21,6 +21,21 @@ npm run test
 
 跑計分與作業流的純邏輯測試。**改到 `lib/flow/*` 或 `lib/scoring.ts` 一定要跑這個。**
 
+### Claude Code：`/flow` 指令
+
+在 Claude Code 裡輸入 `/flow` 會載入本 SPEC、專案鐵則與即時 git 狀態，直接接續開發。
+
+```
+/flow            # 回報現況並問你要做什麼（預設）
+/flow test       # 跑測試
+/flow uat        # 帶你走 11 步驗收清單
+/flow phase2     # 進階段二：論點卡上雲
+/flow phase3     # 進階段三：講師端與 T+20 對帳
+/flow phase4     # 進階段四：分段設定下發
+```
+
+指令定義在 `app/.claude/commands/flow.md`（隨 repo 版控），專案根目錄 `.claude/commands/flow.md` 是指向它的 symlink——因為 VS Code 開的是父層 `菁英班-系統開發`，但 git repo 在 `app/`。兩邊都找得到、只有一份真檔案。
+
 ---
 
 ## 這是什麼
