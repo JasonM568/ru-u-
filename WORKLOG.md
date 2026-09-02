@@ -6,7 +6,7 @@
 
 ## 2026-09-02　作業流控制台 — 階段五：作業存檔（每人 30 檔）
 
-> 在 `feat/flow-runs` 分支。使用者提出：學員會做好幾檔標的，希望能在網站存檔切換。評估後決定做，上限每人 30 檔。
+> 使用者提出：學員會做好幾檔標的，希望能在網站存檔切換。評估後決定做，上限每人 30 檔。**2026-09-02 驗收通過，已合併 main 上線。**
 
 **資料表 `elite.flow_runs`**（migration `elite_flow_runs`）：一次作業一個存檔，整份控制台狀態存 `state` jsonb。RLS：本人讀寫刪、講師只能看。**上限 30 檔由 trigger `elite.flow_runs_cap()` 保底**（server action 也先數），第 31 檔會被擋並回「作業存檔已達上限 30 檔」。另在 `elite.thesis_cards` 加 `run_id`（存檔刪掉時卡保留、run_id 變 null）。
 
