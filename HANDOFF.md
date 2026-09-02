@@ -111,6 +111,7 @@ QEC 深藏藍 × 金奢華風。色票在 `app/globals.css` 用 Tailwind `@theme
 - [ ] Supabase 後台把 `https://elite.huangxi.info/**` 加入 Auth → Redirect URLs（**用 Add URL 附加、勿覆蓋**，共用庫）
 - [ ] 使用者跑完整功能/驗收測試，回報 bug → 修 → push → 自動部署
 - [ ] 講師簽核 `docs/flow-prompts-generic-draft.md` 三段通用版指令措辭（簽核後加 chainKind 分支、移除自訂鏈的黃色提示）
+- [ ] 決定自訂產業鏈的「拆段引導」要不要做（拆段前置指令＋編輯器提示＋單一子段警示，見 WORKLOG 階段六「已知風險與待決」）
 - [ ] 正式開課前完整清理測試資料（清空「學院測試」問卷/團隊紀錄）
 - [ ] 課前：講師在 `/admin/roster` 幫 8 位真實學員分隊、課後依問卷指派職務
 - [ ] **作業流控制台階段一 UAT**：登入 `/flow` 走一遍（Claude 不能輸入密碼，無法代測）。OK 後合 `feat/flow-console` → main
