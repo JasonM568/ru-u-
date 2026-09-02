@@ -1,6 +1,8 @@
 "use client";
 
 import { SEGMENTS, groupById } from "@/lib/flow/segments";
+import { applySplitConfig, buildSplitConfig, sanitizeSplitConfig, type PublishedConfig } from "@/lib/flow/config";
+import { PublishedConfigs } from "./PublishedConfigs";
 import {
   activeStocks,
   addedCount,
@@ -25,10 +27,14 @@ export function RosterEditor({
   state,
   update,
   notify,
+  configs,
+  isInstructor,
 }: {
   state: FlowState;
   update: (fn: (draft: FlowState) => void) => void;
   notify: (msg: string) => void;
+  configs: PublishedConfig[];
+  isInstructor: boolean;
 }) {
   const group = groupById(state.groupId);
   const subs = layout(state);
@@ -42,15 +48,7 @@ export function RosterEditor({
   };
 
   const exportSplit = async () => {
-    const payload = {
-      v: 1,
-      group: group.id,
-      groupName: group.name,
-      custom: state.custom[group.id] ?? null,
-      originalOnly: state.originalOnly,
-      offSubs: state.offSubs,
-      offStocks: state.offStocks,
-    };
+    const payload = buildSplitConfig(state);
     try {
       await navigator.clipboard.writeText(JSON.stringify(payload));
       notify("分段設定已複製，可貼給同學匯入");
@@ -63,21 +61,10 @@ export function RosterEditor({
     const raw = window.prompt("把分段設定貼在這裡：");
     if (!raw) return;
     try {
-      const p = JSON.parse(raw);
-      if (!p || p.v !== 1 || !p.group) throw new Error("格式不符");
-      if (!groupById(p.group) || groupById(p.group).id !== p.group) {
-        throw new Error("找不到這個比較群組");
-      }
-      update((d) => {
-        d.groupId = p.group;
-        if (p.custom) d.custom[p.group] = p.custom;
-        else delete d.custom[p.group];
-        d.originalOnly = !!p.originalOnly;
-        d.offSubs = p.offSubs ?? {};
-        d.offStocks = p.offStocks ?? {};
-        d.editSplit = false;
-      });
-      notify(`已匯入「${p.groupName ?? p.group}」的分段設定`);
+      const cfg = sanitizeSplitConfig(JSON.parse(raw));
+      if (!cfg) throw new Error("格式不符或找不到這個比較群組");
+      update((d) => applySplitConfig(d, cfg));
+      notify(`已匯入「${cfg.groupName}」的分段設定`);
     } catch (err) {
       window.alert(
         `匯入失敗：${err instanceof Error ? err.message : "未知錯誤"}\n\n請確認貼的是完整的分段設定字串（由「匯出分段設定」產生）。`,
@@ -142,6 +129,14 @@ export function RosterEditor({
           {state.custom[group.id] ? "目前使用自訂分段" : "目前使用教材原分段"}
         </span>
       </div>
+
+      <PublishedConfigs
+        configs={configs}
+        isInstructor={isInstructor}
+        state={state}
+        update={update}
+        notify={notify}
+      />
 
       <div className="space-y-3">
         {subs.map((sub) => (

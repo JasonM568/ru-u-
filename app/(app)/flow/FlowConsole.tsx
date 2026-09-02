@@ -30,6 +30,7 @@ import {
   type FlowState,
 } from "@/lib/flow/state";
 import { RosterEditor, ThresholdTable } from "./RosterEditor";
+import type { PublishedConfig } from "@/lib/flow/config";
 import { ThesisCardForm, cccOf, thesisText } from "./ThesisCardForm";
 
 type StationStatus = { kind: "wait" | "open" | "blocked" | "done"; label: string };
@@ -45,7 +46,15 @@ function loadState(key: string): FlowState {
   return blankState();
 }
 
-export function FlowConsole({ userId }: { userId: string }) {
+export function FlowConsole({
+  userId,
+  isInstructor,
+  configs,
+}: {
+  userId: string;
+  isInstructor: boolean;
+  configs: PublishedConfig[];
+}) {
   const storageKey = `flow5:${userId}`;
   const [state, setState] = useState<FlowState>(() => loadState(storageKey));
   const [toast, setToast] = useState("");
@@ -372,6 +381,8 @@ export function FlowConsole({ userId }: { userId: string }) {
           notify={notify}
           copy={copy}
           subs={subs}
+          configs={configs}
+          isInstructor={isInstructor}
         />
       ))}
 
@@ -414,6 +425,8 @@ function StationBlock({
   notify,
   copy,
   subs,
+  configs,
+  isInstructor,
 }: {
   station: Station;
   state: FlowState;
@@ -423,6 +436,8 @@ function StationBlock({
   notify: (m: string) => void;
   copy: (text: string, msg: string) => Promise<void>;
   subs: ReturnType<typeof activeSubs>;
+  configs: PublishedConfig[];
+  isInstructor: boolean;
 }) {
   const open = state.open[st.id] ?? (st.id === "PRE" || status.kind === "blocked");
   const prompt = st.prompt(ctx);
@@ -522,7 +537,7 @@ function StationBlock({
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                 掃描名單
               </h3>
-              <RosterEditor state={state} update={update} notify={notify} />
+              <RosterEditor state={state} update={update} notify={notify} configs={configs} isInstructor={isInstructor} />
             </div>
           )}
 

@@ -69,8 +69,10 @@ npm run test
 | `app/(app)/flow/actions.ts` | `saveThesisCard`（回傳 id，不 redirect）／`deleteThesisCard` |
 | `app/(app)/flow/cards/` | 我的論點卡：列表、T+20 對帳表單、載入到控制台、複製、刪除 |
 | `lib/flow/reconcile.ts` | T+20 四象限判定純函式（server 端重算） |
+| `lib/flow/config.ts` | 分段設定格式：匯出／匯入／講師下發共用（build／sanitize／apply） |
+| `app/(app)/flow/PublishedConfigs.tsx` | 講師下發面板：全班套用、講師下發／撤回 |
 | `app/(app)/admin/thesis-cards/page.tsx` | 講師端：全班論點卡與對帳總覽（唯讀） |
-| `scripts/test-flow.ts` | 47 項純邏輯測試 |
+| `scripts/test-flow.ts` | 51 項純邏輯測試 |
 
 ---
 
@@ -144,7 +146,7 @@ npm run test
 - `lib/flow/reconcile.ts` 四象限判定純函式（server 端重算）：未觸發＋賺＝論點成立｜未觸發＋賠＝證偽條件設計失敗（重寫條件，不是換標的）｜觸發＋執行＝紀律及格｜觸發＋未執行＝紀律失誤（最嚴重）
 - `app/(app)/admin/thesis-cards/page.tsx`：比照 `admin/teams/page.tsx`，平行 select ＋ JS 端 Map join 出 display_name
 
-**階段四　分段設定由講師下發**
+**階段四　分段設定由講師下發**（2026-09-02 完成，分支 `feat/flow-configs`，見 WORKLOG）
 - 新表 `elite.flow_configs`，講師寫、名冊內學員讀
 - 目前的替代做法：控制台已有「匯出／匯入分段設定」（一串 JSON，約 700 字），零後端也能讓全班統一
 

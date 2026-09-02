@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-09-02　作業流控制台 — 階段四：分段設定由講師下發
+
+> 在 `feat/flow-configs` 分支（承接 `feat/thesis-reconcile`）。四階段全部完成，等使用者驗收後一次合 main。
+
+**資料表 `elite.flow_configs`**（migration `elite_flow_configs`）：一個比較群組一份（`group_id` unique，重下發＝覆蓋）。欄位：`title`、`note`、`payload` jsonb（與控制台「匯出分段設定」同格式）、`published_by`。RLS：select `elite.is_enrolled()`（名冊內都讀得到）；insert／update／delete `elite.is_instructor()`，且 `published_by` 必須是自己。
+
+**RLS 雙向實測（10 項全過）**：講師 insert＋select 1、講師拿學員 id 當 published_by 被拒；學員 select 1、update 0、insert 被拒、delete 0；另一講師可覆蓋（update 1）與刪除（1）；anon 被拒。
+
+**共用格式 `lib/flow/config.ts`**（純函式）：`buildSplitConfig`（匯出／下發）、`sanitizeSplitConfig`（匯入／server action 驗證：未知群組或版本回 null、assign 指向不存在子段的一律丟掉、offSubs／offStocks 只收 true）、`applySplitConfig`（匯入／套用）。**原本 RosterEditor 裡的匯出／匯入改用這三支**，行為不變，多了 `ccMode`（全隊須一致的 CCC 合計規則）一起帶。4 項測試 → 全套 51/51。
+
+**程式**
+- `app/(app)/flow/actions.ts`：`publishFlowConfig`（`requireInstructor`，sanitize 後 upsert on group_id）、`unpublishFlowConfig`。
+- `app/(app)/flow/page.tsx` 撈 `flow_configs` ＋ 講師名字（Map join），連同 `isInstructor` 傳進 `FlowConsoleLoader → FlowConsole → StationBlock → RosterEditor`。
+- `app/(app)/flow/PublishedConfigs.tsx`：掃描名單區上方的「講師下發的分段設定」面板。全班：列出各群組目前下發的設定（標題、子段數、CCC 規則、發布者、時間），目前群組那份高亮，一鍵「套用」。講師：多一列「標題＋下發目前分段給全班／覆蓋下發」與每份的「撤回」；下發後 `router.refresh()`。
+- 講師下發的就是講師自己控制台當下的分段狀態，所以講師先在自己的控制台拆好子段、決定要不要含補充個股、選好 CCC 規則，再按下發。
+
+**實測（學院測試帳號，dev）**：用 SQL 以講師身分塞一份「電源段 2 子段、只用教材原表、CCC 相加」的設定 → 學員控制台看得到面板、沒有下發按鈕；按「套用」→ 子段變 2 段（伺服器電源／重電＋BBU）、9 檔、目前使用自訂分段、CCC 相加。**講師端的下發／撤回按鈕未以講師帳號實按**（Claude 只有學員 session），server action 與 RLS 已各自驗證。測試設定已刪。
+
+**驗證**：tsc 通過｜ESLint 0 錯誤（既有 1 警告）｜`npm run test` 5/5＋51/51｜`npm run build` 通過。
+
+---
+
 ## 2026-09-02　作業流控制台 — 階段三：講師端與 T+20 對帳
 
 > 在 `feat/thesis-reconcile` 分支（從 `feat/thesis-cloud` 分出，兩階段一起驗收、一起合 main）。資料表與 RLS 已建在正式庫。

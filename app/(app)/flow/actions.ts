@@ -1,9 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireEnrollment } from "@/lib/auth";
+import { requireEnrollment, requireInstructor } from "@/lib/auth";
 import { cardIsEmpty, cardToRow, sanitizeCard } from "@/lib/flow/cloud";
 import { reconcileFromStrings } from "@/lib/flow/reconcile";
+import { sanitizeSplitConfig } from "@/lib/flow/config";
 
 export type SaveThesisCardResult =
   | { ok: true; id: string; updatedAt: string }
@@ -140,4 +141,52 @@ export async function saveReconciliation(formData: FormData) {
 
   if (error) redirect(`/flow/cards?error=${encodeURIComponent(error.message)}`);
   redirect(`/flow/cards?recon=${cardId}#card-${cardId}`);
+}
+
+export type ActionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * 講師把目前控制台的分段設定下發給全班（一個比較群組一份，重下發＝覆蓋）。
+ * payload 先經 lib/flow/config.ts 驗證：未知群組、壞掉的 assign 都進不了資料庫。
+ */
+export async function publishFlowConfig(payload: {
+  title: string;
+  note: string;
+  config: string;
+}): Promise<ActionResult> {
+  const { supabase, userId } = await requireInstructor();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload.config);
+  } catch {
+    return { ok: false, error: "分段設定無法解析" };
+  }
+  const cfg = sanitizeSplitConfig(parsed);
+  if (!cfg) return { ok: false, error: "分段設定格式不符或群組不存在" };
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .schema("elite")
+    .from("flow_configs")
+    .upsert(
+      {
+        group_id: cfg.group,
+        title: payload.title.trim().slice(0, 100),
+        note: payload.note.trim().slice(0, 2000),
+        payload: cfg,
+        published_by: userId,
+        updated_at: now,
+      },
+      { onConflict: "group_id" },
+    );
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function unpublishFlowConfig(groupId: string): Promise<ActionResult> {
+  const { supabase } = await requireInstructor();
+  const { error } = await supabase.schema("elite").from("flow_configs").delete().eq("group_id", groupId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }

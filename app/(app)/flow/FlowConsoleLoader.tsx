@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { PublishedConfig } from "@/lib/flow/config";
 
 /**
  * 控制台是純客戶端工具，狀態存在瀏覽器 localStorage。
@@ -13,6 +14,14 @@ const FlowConsole = dynamic(() => import("./FlowConsole").then((m) => m.FlowCons
   loading: () => <p className="py-10 text-center text-sm text-slate-400">載入控制台…</p>,
 });
 
-export function FlowConsoleLoader({ userId }: { userId: string }) {
-  return <FlowConsole userId={userId} />;
+export function FlowConsoleLoader({
+  userId,
+  isInstructor,
+  configs,
+}: {
+  userId: string;
+  isInstructor: boolean;
+  configs: PublishedConfig[];
+}) {
+  return <FlowConsole userId={userId} isInstructor={isInstructor} configs={configs} />;
 }
