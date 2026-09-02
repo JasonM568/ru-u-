@@ -2,7 +2,9 @@ import Link from "next/link";
 import { requireEnrollment } from "@/lib/auth";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { pct } from "@/lib/flow/ccc";
-import { rowToCard, type ThesisCardRow } from "@/lib/flow/cloud";
+import { rowToCard, type ReconciliationRow, type ThesisCardRow } from "@/lib/flow/cloud";
+import { OUTCOME_LABEL, OUTCOME_TONE } from "@/lib/flow/reconcile";
+import { ReconcileForm } from "./ReconcileForm";
 import { thesisText } from "@/lib/flow/thesis";
 import { groupById } from "@/lib/flow/segments";
 import { CardActions } from "./CardActions";
@@ -21,20 +23,24 @@ function fmt(iso: string): string {
 export default async function MyThesisCardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ deleted?: string; error?: string }>;
+  searchParams: Promise<{ deleted?: string; error?: string; recon?: string }>;
 }) {
   const { supabase, userId } = await requireEnrollment();
-  const { deleted, error } = await searchParams;
+  const { deleted, error, recon } = await searchParams;
 
-  // RLS 只會回本人的卡（講師這頁也只看自己的；全班的卡在階段三的講師端）
-  const { data, error: qErr } = await supabase
-    .schema("elite")
-    .from("thesis_cards")
-    .select("*")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
+  // RLS 只會回本人的卡與對帳（全班的在講師端 /admin/thesis-cards）
+  const [{ data, error: qErr }, { data: reconData }] = await Promise.all([
+    supabase
+      .schema("elite")
+      .from("thesis_cards")
+      .select("*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false }),
+    supabase.schema("elite").from("thesis_reconciliations").select("*").eq("user_id", userId),
+  ]);
 
   const rows = (data ?? []) as ThesisCardRow[];
+  const reconOf = new Map(((reconData ?? []) as ReconciliationRow[]).map((r) => [r.card_id, r]));
 
   return (
     <div className="flow-console">
@@ -53,6 +59,11 @@ export default async function MyThesisCardsPage({
           已刪除一張論點卡。
         </div>
       )}
+      {recon && (
+        <div className="mb-4 rounded-lg border border-emerald-700/40 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          對帳已存檔，判定結果由系統重算，見卡片上的 T+20 徽章。
+        </div>
+      )}
       {(error || qErr) && (
         <div className="mb-4 rounded-lg border border-rose-700/40 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error === "missing" ? "找不到要刪的卡。" : (error ?? qErr?.message)}
@@ -68,8 +79,10 @@ export default async function MyThesisCardsPage({
           {rows.map((row) => {
             const tc = rowToCard(row);
             const group = row.group_id ? groupById(row.group_id) : null;
+            const r = reconOf.get(row.id) ?? null;
             return (
               <Card key={row.id}>
+                <div id={`card-${row.id}`} />
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="font-display text-lg font-semibold text-slate-800">
@@ -89,6 +102,14 @@ export default async function MyThesisCardsPage({
                     ) : (
                       <Badge tone="rose">CCC {pct(row.cc_ratio)} 本案不成立</Badge>
                     )}
+                    {r?.outcome ? (
+                      <Badge tone={OUTCOME_TONE[r.outcome]}>
+                        T+20 {OUTCOME_LABEL[r.outcome]}
+                        {r.pnl_pct !== null && `　${pct(r.pnl_pct)}`}
+                      </Badge>
+                    ) : (
+                      <Badge tone="slate">{r ? "對帳未完成" : "尚未對帳"}</Badge>
+                    )}
                   </div>
                 </div>
 
@@ -103,6 +124,15 @@ export default async function MyThesisCardsPage({
                   <pre className="mt-2 max-h-[480px] overflow-auto rounded-lg border border-slate-200 border-l-2 border-l-amber-500 bg-white/40 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
                     {thesisText(tc)}
                   </pre>
+                </details>
+
+                <details className="mt-3" open={recon === row.id}>
+                  <summary className="cursor-pointer text-base font-medium text-[color:var(--gold)] hover:underline">
+                    T+20 對帳{r ? "（已填，可更新）" : "（月例會時填）"}
+                  </summary>
+                  <div className="mt-3">
+                    <ReconcileForm card={tc} existing={r} />
+                  </div>
                 </details>
 
                 <div className="mt-4">

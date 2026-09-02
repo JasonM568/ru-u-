@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireEnrollment } from "@/lib/auth";
 import { cardIsEmpty, cardToRow, sanitizeCard } from "@/lib/flow/cloud";
+import { reconcileFromStrings } from "@/lib/flow/reconcile";
 
 export type SaveThesisCardResult =
   | { ok: true; id: string; updatedAt: string }
@@ -81,4 +82,62 @@ export async function deleteThesisCard(formData: FormData) {
 
   if (error) redirect(`/flow/cards?error=${encodeURIComponent(error.message)}`);
   redirect("/flow/cards?deleted=1");
+}
+
+const tri = (v: FormDataEntryValue | null): boolean | null =>
+  v === "yes" ? true : v === "no" ? false : null;
+
+/**
+ * T+20 對帳：學員在月例會時對自己的論點卡填三個證偽條件的觸發情況。
+ * 四象限 outcome、pnl、any_triggered 一律在 server 端用 lib/flow/reconcile.ts 重算。
+ * 一張卡一筆（upsert on card_id）。RLS 保證只能對自己的卡填。
+ */
+export async function saveReconciliation(formData: FormData) {
+  const { supabase, userId } = await requireEnrollment();
+  const cardId = String(formData.get("card_id") ?? "");
+  if (!cardId) redirect("/flow/cards?error=missing");
+
+  // 卡必須是自己的（RLS 也會擋，這裡先給清楚的錯誤）
+  const { data: card } = await supabase
+    .schema("elite")
+    .from("thesis_cards")
+    .select("id")
+    .eq("id", cardId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!card) redirect("/flow/cards?error=missing");
+
+  const checks = [1, 2, 3].map((i) => ({
+    triggered: tri(formData.get(`t${i}`)),
+    note: String(formData.get(`n${i}`) ?? "").slice(0, 2000),
+  }));
+  const executed = tri(formData.get("executed"));
+  const entryPx = String(formData.get("entry_px") ?? "").trim().slice(0, 50);
+  const checkPx = String(formData.get("check_px") ?? "").trim().slice(0, 50);
+  const r = reconcileFromStrings({ checks, executed, entryPx, checkPx });
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .schema("elite")
+    .from("thesis_reconciliations")
+    .upsert(
+      {
+        card_id: cardId,
+        user_id: userId,
+        checked_on: String(formData.get("checked_on") ?? "").trim().slice(0, 50),
+        entry_px: entryPx,
+        check_px: checkPx,
+        checks,
+        executed,
+        reflection: String(formData.get("reflection") ?? "").slice(0, 4000),
+        pnl_pct: r.pnl,
+        any_triggered: r.anyTriggered,
+        outcome: r.outcome,
+        updated_at: now,
+      },
+      { onConflict: "card_id" },
+    );
+
+  if (error) redirect(`/flow/cards?error=${encodeURIComponent(error.message)}`);
+  redirect(`/flow/cards?recon=${cardId}#card-${cardId}`);
 }

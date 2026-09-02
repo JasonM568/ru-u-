@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-09-02　作業流控制台 — 階段三：講師端與 T+20 對帳
+
+> 在 `feat/thesis-reconcile` 分支（從 `feat/thesis-cloud` 分出，兩階段一起驗收、一起合 main）。資料表與 RLS 已建在正式庫。
+
+**資料表 `elite.thesis_reconciliations`**（migration `elite_thesis_reconciliations`）：一張卡一筆（`card_id` unique，卡刪除 cascade）。欄位：對帳日期、進場價、對帳日價格（沿用 UI 字串）、`checks` jsonb 三筆 `{triggered, note}`、`executed`、`reflection`；server 端重算 `pnl_pct`／`any_triggered`／`outcome`。RLS 與論點卡同規則：select 本人或講師；insert 另加「card 必須是自己的」子句；update／delete 限本人。**講師只能看**。
+
+**RLS 雙向實測（10 項全過）**：A 本人 select 1；B 他人 select 0、update 0、對 A 的卡建對帳被拒 42501；講師 select 1、update 0、delete 0；A 內容未被改；A 刪卡 cascade 後對帳殘留 0。
+
+**四象限純函式 `lib/flow/reconcile.ts`**（server 端重算，前端只預覽）：
+- 未觸發＋賺＝論點成立｜未觸發＋賠＝證偽條件設計失敗（重寫條件，不是換標的）｜觸發＋執行＝紀律及格｜觸發＋未執行＝紀律失誤（最嚴重）
+- `anyTriggered`：任一條 true → true；三條都明確 false → false；否則 null（資料不足）。觸發時賺賠不影響判定；未觸發時要有進場價與對帳價才判得出來，缺一律回 `outcome: null` 並附 `missing` 說明。
+- 11 項測試 → 全套 47/47。
+
+**程式**
+- `app/(app)/flow/actions.ts`：`saveReconciliation`（傳統 form action ＋ redirect，upsert on card_id；先確認卡是自己的）。
+- `app/(app)/flow/cards/ReconcileForm.tsx`：三個證偽條件各一組「已觸發／未觸發」＋實際數字備註；有觸發才出現「有沒有照規則做」；即時預覽賺賠與判定。「我的論點卡」每張卡多一個「T+20 對帳」摺疊區與 T+20 徽章。
+- `app/(app)/admin/thesis-cards/page.tsx`：講師端總覽，比照 `admin/teams`——平行 select 三張表、JS 端 Map join 名字與隊伍；頂部四象限計數＋尚未對帳數；依隊分組；每張卡顯示 CCC、T+20 徽章（含賺賠）、三條件觸發狀態與備註、對帳資訊與檢討、可展開整張卡。導覽列講師多「論點卡」。
+
+**實測（學院測試帳號，dev）**：存一張三條件齊全的卡 → 對帳三條未觸發、100→110 → 徽章「T+20 論點成立 10.0%」、資料庫 outcome `thesis_holds`；改條件 2 已觸發＋沒照規則做 → 預覽與資料庫皆 `discipline_failed`（賺 10% 不影響）。未登入打 `/admin/thesis-cards` 導向登入頁。**講師端畫面未以講師帳號實看**（Claude 只有學員 session），請你用講師帳號開一次。測試卡已刪（cascade 連對帳一起）。
+
+**驗證**：tsc 通過｜ESLint 0 錯誤（既有 1 警告）｜`npm run test` 5/5＋47/47｜`npm run build` 通過（新增 `/admin/thesis-cards`）。
+
+---
+
 ## 2026-09-02　作業流控制台 — 階段二：論點卡上雲
 
 > 在 `feat/thesis-cloud` 分支。資料表與 RLS 已建在正式庫（`elite.thesis_cards`），程式待使用者驗收後合 main。

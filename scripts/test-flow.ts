@@ -8,6 +8,7 @@
 
 import { computeCcc, toNum } from "../lib/flow/ccc";
 import { cardIsEmpty, cardToRow, rowToCard, sanitizeCard, type ThesisCardRow } from "../lib/flow/cloud";
+import { reconcile, reconcileFromStrings, sanitizeChecks } from "../lib/flow/reconcile";
 import { SEGMENTS, GROUPS } from "../lib/flow/segments";
 import * as P from "../lib/flow/prompts";
 import {
@@ -307,6 +308,28 @@ add("rowToCard ∘ cardToRow：來回不掉欄位", () => {
 add("cardIsEmpty：空卡不准存；有代號就算有內容", () => cardIsEmpty(sanitizeCard({})) && !cardIsEmpty(sanitizeCard({ code: "1519" })));
 
 let pass = 0;
+// ── 階段三：T+20 對帳四象限（server 端重算） ──
+const F = (a: boolean | null, b: boolean | null, c: boolean | null) =>
+  [a, b, c].map((t) => ({ triggered: t, note: "" }));
+add("對帳：未觸發＋賺 ＝ 論點成立", () => reconcile({ checks: F(false, false, false), executed: null, entryPx: 100, checkPx: 110 }).outcome === "thesis_holds");
+add("對帳：未觸發＋賠 ＝ 證偽條件設計失敗", () => reconcile({ checks: F(false, false, false), executed: null, entryPx: 100, checkPx: 95 }).outcome === "falsifier_design_failed");
+add("對帳：觸發＋執行 ＝ 紀律及格（賺賠不影響）", () => {
+  const r1 = reconcile({ checks: F(true, false, false), executed: true, entryPx: 100, checkPx: 80 });
+  const r2 = reconcile({ checks: F(false, false, true), executed: true, entryPx: 100, checkPx: 120 });
+  return r1.outcome === "discipline_ok" && r2.outcome === "discipline_ok";
+});
+add("對帳：觸發＋未執行 ＝ 紀律失誤", () => reconcile({ checks: F(false, true, false), executed: false, entryPx: null, checkPx: null }).outcome === "discipline_failed");
+add("對帳：有條件未判定且沒有任何一條觸發 → 資料不足", () => {
+  const r = reconcile({ checks: F(false, null, false), executed: null, entryPx: 100, checkPx: 110 });
+  return r.outcome === null && r.anyTriggered === null && !!r.missing;
+});
+add("對帳：只要有一條觸發，其他未判定也算觸發", () => reconcile({ checks: F(null, true, null), executed: true, entryPx: null, checkPx: null }).anyTriggered === true);
+add("對帳：觸發但沒填有沒有執行 → 待填", () => reconcile({ checks: F(true, false, false), executed: null, entryPx: 100, checkPx: 90 }).outcome === null);
+add("對帳：未觸發但沒填價格 → 待填，pnl 為 null", () => { const r = reconcile({ checks: F(false, false, false), executed: null, entryPx: 100, checkPx: null }); return r.outcome === null && r.pnl === null; });
+add("對帳：pnl 用 (對帳價−進場價)/進場價；進場價 0 → null", () => Math.abs((reconcile({ checks: F(false, false, false), executed: null, entryPx: 80, checkPx: 100 }).pnl ?? 0) - 0.25) < 1e-9 && reconcile({ checks: F(false, false, false), executed: null, entryPx: 0, checkPx: 100 }).pnl === null);
+add("sanitizeChecks：非布林一律 null、固定三筆、note 收字串", () => { const c = sanitizeChecks([{ triggered: "yes", note: 5 }, { triggered: true }]); return c.length === 3 && c[0].triggered === null && c[0].note === "" && c[1].triggered === true && c[2].triggered === null; });
+add("reconcileFromStrings：UI 字串入口與數字入口一致", () => reconcileFromStrings({ checks: F(false, false, false), executed: null, entryPx: "100", checkPx: " 110 " }).outcome === "thesis_holds");
+
 for (const c of cases) {
   let ok = false;
   let err = "";

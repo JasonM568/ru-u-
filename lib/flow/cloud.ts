@@ -9,6 +9,7 @@
  */
 
 import { computeCcc, toNum, type CcMode } from "./ccc";
+import type { FalsifierCheck, Outcome } from "./reconcile";
 import {
   FALSIFIER_LEVELS,
   blankThesisCard,
@@ -206,3 +207,21 @@ export function rowToCard(row: ThesisCardRow): ThesisCard {
 export function cardIsEmpty(tc: ThesisCard): boolean {
   return !tc.code.trim() && !tc.name.trim() && !tc.thesis.trim();
 }
+
+/** elite.thesis_reconciliations 的一列。 */
+export type ReconciliationRow = {
+  id: string;
+  card_id: string;
+  user_id: string;
+  checked_on: string;
+  entry_px: string;
+  check_px: string;
+  checks: FalsifierCheck[];
+  executed: boolean | null;
+  reflection: string;
+  pnl_pct: number | null;
+  any_triggered: boolean | null;
+  outcome: Outcome | null;
+  created_at: string;
+  updated_at: string;
+};

@@ -67,8 +67,10 @@ npm run test
 | `lib/flow/cloud.ts` | 論點卡 ⇄ `elite.thesis_cards` 序列化、server 端重算 cc_*（純函式） |
 | `lib/flow/thesis.ts` | `cccOf`／`thesisText` 純函式（server／client 共用） |
 | `app/(app)/flow/actions.ts` | `saveThesisCard`（回傳 id，不 redirect）／`deleteThesisCard` |
-| `app/(app)/flow/cards/` | 我的論點卡：列表、載入到控制台、複製、刪除 |
-| `scripts/test-flow.ts` | 36 項純邏輯測試 |
+| `app/(app)/flow/cards/` | 我的論點卡：列表、T+20 對帳表單、載入到控制台、複製、刪除 |
+| `lib/flow/reconcile.ts` | T+20 四象限判定純函式（server 端重算） |
+| `app/(app)/admin/thesis-cards/page.tsx` | 講師端：全班論點卡與對帳總覽（唯讀） |
+| `scripts/test-flow.ts` | 47 項純邏輯測試 |
 
 ---
 
@@ -137,7 +139,7 @@ npm run test
 - `app/(app)/flow/actions.ts` 的 `saveThesisCard`：比照問卷，狀態序列化進 hidden field → server 端 `JSON.parse` → **用 `lib/flow/ccc.ts` 重算 cc_* 五個欄位**後才寫入
 - `app/(app)/flow/cards/page.tsx` 我的論點卡列表
 
-**階段三　講師端與 T+20 對帳**
+**階段三　講師端與 T+20 對帳**（2026-09-02 完成，分支 `feat/thesis-reconcile`，見 WORKLOG）
 - 新表 `elite.thesis_reconciliations`
 - `lib/flow/reconcile.ts` 四象限判定純函式（server 端重算）：未觸發＋賺＝論點成立｜未觸發＋賠＝證偽條件設計失敗（重寫條件，不是換標的）｜觸發＋執行＝紀律及格｜觸發＋未執行＝紀律失誤（最嚴重）
 - `app/(app)/admin/thesis-cards/page.tsx`：比照 `admin/teams/page.tsx`，平行 select ＋ JS 端 Map join 出 display_name
