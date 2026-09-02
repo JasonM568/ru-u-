@@ -1,6 +1,6 @@
 # SPEC — 五層作業流控制台（/flow）
 
-> 版本：階段一完成並上線（2026-09-02 合併 main）｜UAT 11 步已通過（見 WORKLOG）
+> 版本：四階段全部完成並上線（2026-09-02）｜UAT 見 WORKLOG
 > 相關：`WORKLOG.md` 2026-09-02、`HANDOFF.md`、教材《AI 供應鏈五層作業流指令串(Elite) v2》
 
 ---
@@ -135,18 +135,18 @@ npm run test
 
 **階段一（已完成，未合併）**：控制台移植進站，資料存 localStorage（key = `flow5:{userId}`，帶 user_id 所以同一台電腦多人登入不會互蓋）。
 
-**階段二　論點卡上雲**（2026-09-02 完成，分支 `feat/thesis-cloud`，見 WORKLOG）
+**階段二　論點卡上雲**（2026-09-02 完成並上線，見 WORKLOG）
 - 新表 `elite.thesis_cards`（MCP `apply_migration`，name `elite_thesis_cards`）
 - RLS：學員讀寫自己（`user_id = auth.uid() and elite.is_enrolled()`）；講師 select 全部（`elite.is_instructor()`），**講師不能改學員的卡**
 - `app/(app)/flow/actions.ts` 的 `saveThesisCard`：比照問卷，狀態序列化進 hidden field → server 端 `JSON.parse` → **用 `lib/flow/ccc.ts` 重算 cc_* 五個欄位**後才寫入
 - `app/(app)/flow/cards/page.tsx` 我的論點卡列表
 
-**階段三　講師端與 T+20 對帳**（2026-09-02 完成，分支 `feat/thesis-reconcile`，見 WORKLOG）
+**階段三　講師端與 T+20 對帳**（2026-09-02 完成並上線，見 WORKLOG）
 - 新表 `elite.thesis_reconciliations`
 - `lib/flow/reconcile.ts` 四象限判定純函式（server 端重算）：未觸發＋賺＝論點成立｜未觸發＋賠＝證偽條件設計失敗（重寫條件，不是換標的）｜觸發＋執行＝紀律及格｜觸發＋未執行＝紀律失誤（最嚴重）
 - `app/(app)/admin/thesis-cards/page.tsx`：比照 `admin/teams/page.tsx`，平行 select ＋ JS 端 Map join 出 display_name
 
-**階段四　分段設定由講師下發**（2026-09-02 完成，分支 `feat/flow-configs`，見 WORKLOG）
+**階段四　分段設定由講師下發**（2026-09-02 完成並上線，見 WORKLOG）
 - 新表 `elite.flow_configs`，講師寫、名冊內學員讀
 - 目前的替代做法：控制台已有「匯出／匯入分段設定」（一串 JSON，約 700 字），零後端也能讓全班統一
 

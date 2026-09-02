@@ -6,7 +6,7 @@
 
 ## 2026-09-02　作業流控制台 — 階段四：分段設定由講師下發
 
-> 在 `feat/flow-configs` 分支（承接 `feat/thesis-reconcile`）。四階段全部完成，等使用者驗收後一次合 main。
+> 四階段全部完成。**2026-09-02 使用者驗收通過，階段二～四已合併 main 上線。**
 
 **資料表 `elite.flow_configs`**（migration `elite_flow_configs`）：一個比較群組一份（`group_id` unique，重下發＝覆蓋）。欄位：`title`、`note`、`payload` jsonb（與控制台「匯出分段設定」同格式）、`published_by`。RLS：select `elite.is_enrolled()`（名冊內都讀得到）；insert／update／delete `elite.is_instructor()`，且 `published_by` 必須是自己。
 
@@ -28,7 +28,7 @@
 
 ## 2026-09-02　作業流控制台 — 階段三：講師端與 T+20 對帳
 
-> 在 `feat/thesis-reconcile` 分支（從 `feat/thesis-cloud` 分出，兩階段一起驗收、一起合 main）。資料表與 RLS 已建在正式庫。
+> 2026-09-02 已隨階段四合併 main 上線。
 
 **資料表 `elite.thesis_reconciliations`**（migration `elite_thesis_reconciliations`）：一張卡一筆（`card_id` unique，卡刪除 cascade）。欄位：對帳日期、進場價、對帳日價格（沿用 UI 字串）、`checks` jsonb 三筆 `{triggered, note}`、`executed`、`reflection`；server 端重算 `pnl_pct`／`any_triggered`／`outcome`。RLS 與論點卡同規則：select 本人或講師；insert 另加「card 必須是自己的」子句；update／delete 限本人。**講師只能看**。
 
@@ -52,7 +52,7 @@
 
 ## 2026-09-02　作業流控制台 — 階段二：論點卡上雲
 
-> 在 `feat/thesis-cloud` 分支。資料表與 RLS 已建在正式庫（`elite.thesis_cards`），程式待使用者驗收後合 main。
+> 2026-09-02 已隨階段四合併 main 上線。
 
 **資料表 `elite.thesis_cards`**（migration `elite_thesis_cards`）：一人可存多張卡；欄位對應論點卡七欄（證據與證偽條件各存 jsonb 三筆），另有 `group_id`／`as_of` 記控制台脈絡，`cc_l3`／`cc_l4`／`cc_total`／`cc_ratio`／`cc_pass` 五欄由 server 端重算。RLS：select 本人或 `elite.is_instructor()`；insert／update／delete 皆 `user_id = auth.uid() and elite.is_enrolled()`，**講師不能改也不能刪學員的卡**。
 

@@ -75,7 +75,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 ## 路由
 
-- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線）、`/flow/cards`（我的論點卡＋T+20 對帳；階段二～四在 `feat/thesis-cloud`→`feat/thesis-reconcile`→`feat/flow-configs` 待合併）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
+- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線）、`/flow/cards`（我的論點卡＋T+20 對帳，2026-09-02 上線）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
 - 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/thesis-cards`（論點卡與 T+20 對帳總覽）、`/admin/process-notes`、`/admin/schedule`
 - 公開：`/login`、`/not-enrolled`
 - 權限閘門：`proxy.ts`（未登入→login）；`lib/auth.ts` 的 `requireEnrollment()`／`requireInstructor()`（頁面層）
