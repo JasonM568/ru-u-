@@ -1,6 +1,6 @@
 # HANDOFF — 菁英班孵化系統 1.0
 
-> 交班單。最後更新：2026-07-31。維護前先讀這份 + `CLAUDE.md`。
+> 交班單。最後更新：2026-09-02。維護前先讀這份 + `CLAUDE.md`。
 
 ## 這是什麼
 
@@ -60,9 +60,22 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 送出時由 server action **重算**存 DB（前端只做即時預覽）。測試：`npx tsx scripts/test-scoring.ts`（5/5）。
 
+## 五層作業流控制台（/flow）
+
+⚠️ **在 `feat/flow-console` 分支，尚未合併 main。** 完整規格見 `docs/flow-console-SPEC.md`，開發脈絡見 `WORKLOG.md` 2026-09-02。
+
+8/30 月例會「AI 供應鏈五層作業流」的線上版：輸入股票代號 → 產出八道指令 → 交棒卡逐層帶入 → 收斂成一張投資論點卡。目前資料存 localStorage（`flow5:{userId}`），**尚未進資料庫**。
+
+- 資料與純函式：`lib/flow/`（`segments` 分段資料｜`prompts` 指令產生器｜`ccc` 確認成本與 33% 硬閘門｜`state` 分段結構邏輯｜`stations` 站點定義）
+- 畫面：`app/(app)/flow/`
+- 測試：`npx tsx scripts/test-flow.ts`（31/31）
+- **改分段資料或指令文字前先看 SPEC 的「不可擅改」一節**——指令文字是教材原文，補充個股與教材原表必須分得清楚。
+
+後續三階段（論點卡上雲 → 講師端 T+20 對帳 → 分段設定下發）見 SPEC。
+
 ## 路由
 
-- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
+- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，**在 feat/flow-console 分支，未上線**）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
 - 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/process-notes`、`/admin/schedule`
 - 公開：`/login`、`/not-enrolled`
 - 權限閘門：`proxy.ts`（未登入→login）；`lib/auth.ts` 的 `requireEnrollment()`／`requireInstructor()`（頁面層）
@@ -72,7 +85,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 ```bash
 npm install
 npm run dev        # http://localhost:3000（需 .env.local，見上）
+npm run flow       # 起 dev 並直接開作業流控制台 /flow
 npm run build      # 上線前驗證
+npm run test       # 計分 + 作業流的純邏輯測試（改到 lib/scoring.ts 或 lib/flow/* 一定要跑）
 ```
 
 ## 部署
@@ -97,6 +112,9 @@ QEC 深藏藍 × 金奢華風。色票在 `app/globals.css` 用 Tailwind `@theme
 - [ ] 使用者跑完整功能/驗收測試，回報 bug → 修 → push → 自動部署
 - [ ] 正式開課前完整清理測試資料（清空「學院測試」問卷/團隊紀錄）
 - [ ] 課前：講師在 `/admin/roster` 幫 8 位真實學員分隊、課後依問卷指派職務
+- [ ] **作業流控制台階段一 UAT**：登入 `/flow` 走一遍（Claude 不能輸入密碼，無法代測）。OK 後合 `feat/flow-console` → main
+- [ ] **查證 `lib/flow/segments.ts` 裡 16 檔補充個股**（散熱 3483/3338/6275/6125/4763、CPO 3234/3450/4977/4991/2340、PCB 6269/2367/2316/4927/6153/6251）的代號、公司名與所屬子段。這些非教材原表，是 Claude 依訓練資料補的
+- [ ] 作業流控制台階段二～四（論點卡上雲 → 講師端 T+20 對帳 → 分段設定下發），見 `docs/flow-console-SPEC.md`
 - [ ] 暫緩功能：教材下載紀錄追蹤（誰下載過哪個檔案）——需 `elite.material_downloads` 表＋下載改走系統端點記錄再轉址（設計方案在 2026-07-19 對話）
 - 現況名冊：9 學員（吳旻玹/桂平宇/楊世祺/莊富翔/陳俐瑾/陳建中/黃大正/黃淑珮/學院測試）＋ 3 講師（陳孟宏/顧及然/梁舒庭）。「測試點數」已移除。多數學員未分隊未填問卷（課前狀態）
 - 帳密：兩站同帳密、密碼單向雜湊不可查；不做臨時密碼，忘記密碼走 course 平台重設
