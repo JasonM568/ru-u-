@@ -7,8 +7,8 @@ import {
   buildSplitConfig,
   type PublishedConfig,
 } from "@/lib/flow/config";
-import { groupById } from "@/lib/flow/segments";
-import type { FlowState } from "@/lib/flow/state";
+import { chainStockCount } from "@/lib/flow/chains";
+import { resolveGroup, type FlowState } from "@/lib/flow/state";
 import { publishFlowConfig, unpublishFlowConfig } from "./actions";
 
 function fmt(iso: string): string {
@@ -40,13 +40,17 @@ export function PublishedConfigs({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [title, setTitle] = useState("");
-  const group = groupById(state.groupId);
+  const rg = resolveGroup(state);
+  const group = { id: rg.id, name: rg.name };
   const current = configs.find((c) => c.group_id === group.id) ?? null;
   const others = configs.filter((c) => c.group_id !== group.id);
 
   const apply = (c: PublishedConfig) => {
+    const overwrites = !!(c.payload.chain && state.chains?.[c.payload.chain.id]);
     update((d) => applySplitConfig(d, c.payload));
-    notify(`已套用講師下發的「${c.title || c.payload.groupName}」`);
+    notify(
+      `已套用講師下發的「${c.title || c.payload.groupName}」${overwrites ? "（同 id 的自訂產業鏈已被覆蓋）" : ""}`,
+    );
   };
 
   const publish = () =>
@@ -108,8 +112,11 @@ export function PublishedConfigs({
             {pending ? "處理中…" : current ? `覆蓋下發「${group.name}」` : `下發目前分段給全班`}
           </button>
           <span className="text-sm text-slate-400">
-            下發的是你現在這頁的分段：{state.custom[group.id] ? "自訂分段" : "教材原分段"}、
-            {state.originalOnly ? "只用教材原表" : "含補充個股"}、CCC {state.tc.ccMode === "sum" ? "相加" : "取較高者"}
+            下發的是你現在這頁的分段：
+            {rg.kind === "custom"
+              ? `自訂產業鏈「${rg.name}」（${rg.custom!.subs.length} 子段 ${chainStockCount(rg.custom!)} 檔）`
+              : `${state.custom[group.id] ? "自訂分段" : "教材原分段"}、${state.originalOnly ? "只用教材原表" : "含補充個股"}`}
+            、CCC {state.tc.ccMode === "sum" ? "相加" : "取較高者"}
           </span>
         </div>
       )}
@@ -142,7 +149,11 @@ function ConfigRow({
         <span className="font-medium text-slate-800">{c.title || c.payload.groupName}</span>
         <span className="ml-2 text-slate-400">
           {c.payload.groupName}
-          {c.payload.custom ? `　·　${c.payload.custom.subs.length} 子段（自訂）` : "　·　教材原分段"}
+          {c.payload.chain
+            ? `　·　自訂產業鏈・${c.payload.chain.subs.length} 子段・${chainStockCount(c.payload.chain)} 檔`
+            : c.payload.custom
+              ? `　·　${c.payload.custom.subs.length} 子段（自訂）`
+              : "　·　教材原分段"}
           {c.payload.ccMode && `　·　CCC ${c.payload.ccMode === "sum" ? "相加" : "取較高者"}`}
         </span>
         <span className="ml-2 text-slate-500">

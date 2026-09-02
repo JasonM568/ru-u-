@@ -4,7 +4,7 @@ import { TEAMS, teamName } from "@/lib/constants";
 import { pct } from "@/lib/flow/ccc";
 import { rowToCard, type ReconciliationRow, type ThesisCardRow } from "@/lib/flow/cloud";
 import { OUTCOME_LABEL, OUTCOME_TONE, type Outcome } from "@/lib/flow/reconcile";
-import { groupById } from "@/lib/flow/segments";
+import { groupLabel } from "@/lib/flow/chains";
 import { thesisText } from "@/lib/flow/thesis";
 import { sanitizeState } from "@/lib/flow/runs";
 import { CARD_LABEL, type CardId } from "@/lib/flow/prompts";
@@ -94,7 +94,7 @@ export default async function AdminThesisCardsPage() {
                   {list.map((row) => {
                     const tc = rowToCard(row);
                     const r = reconOf.get(row.id) ?? null;
-                    const group = row.group_id ? groupById(row.group_id) : null;
+                    const groupName = groupLabel(row.group_id, row.run_id ? runOf.get(row.run_id)?.state.chains : undefined);
                     return (
                       <Card key={row.id}>
                         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -106,7 +106,7 @@ export default async function AdminThesisCardsPage() {
                               {tc.code || "____"} {tc.name || "（未填名稱）"}
                             </h3>
                             <p className="mt-0.5 text-sm text-slate-400">
-                              {[group?.name, tc.sub, tc.cls].filter(Boolean).join("　·　") || "尚未填子段與分類"}
+                              {[groupName, tc.sub, tc.cls].filter(Boolean).join("　·　") || "尚未填子段與分類"}
                               {tc.date && `　·　${tc.date}`}
                             </p>
                           </div>

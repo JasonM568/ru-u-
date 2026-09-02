@@ -1,6 +1,8 @@
 "use client";
 
-import { SEGMENTS, groupById } from "@/lib/flow/segments";
+import { SEGMENTS } from "@/lib/flow/segments";
+import { CHAIN_LIMITS } from "@/lib/flow/chains";
+import { StockRowsEditor } from "./ChainEditor";
 import { applySplitConfig, buildSplitConfig, sanitizeSplitConfig, type PublishedConfig } from "@/lib/flow/config";
 import { PublishedConfigs } from "./PublishedConfigs";
 import {
@@ -8,6 +10,7 @@ import {
   addedCount,
   layout,
   newSubId,
+  resolveGroup,
   seedCustomSplit,
   stockKey,
   type FlowState,
@@ -36,9 +39,11 @@ export function RosterEditor({
   configs: PublishedConfig[];
   isInstructor: boolean;
 }) {
-  const group = groupById(state.groupId);
+  const rg = resolveGroup(state);
+  const group = { id: rg.id, name: rg.name };
+  const isCustomChain = rg.kind === "custom";
   const subs = layout(state);
-  const edit = state.editSplit;
+  const edit = state.editSplit && !isCustomChain;
   const targets = subs.filter((s) => !s.unassigned);
   const hasAdded = addedCount(state) > 0;
 
@@ -75,6 +80,7 @@ export function RosterEditor({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
+        {!isCustomChain && (
         <button
           type="button"
           className={edit ? "btn-gold rounded-lg px-3 py-1.5 text-sm" : "btn-ghost rounded-lg px-3 py-1.5 text-sm"}
@@ -87,6 +93,7 @@ export function RosterEditor({
         >
           {edit ? "完成分段" : "自訂分段"}
         </button>
+        )}
         {edit && (
           <>
             <button
@@ -126,7 +133,11 @@ export function RosterEditor({
           匯入分段設定
         </button>
         <span className="text-sm text-slate-400">
-          {state.custom[group.id] ? "目前使用自訂分段" : "目前使用教材原分段"}
+          {isCustomChain
+            ? `目前使用自訂產業鏈「${rg.name}」；子段與個股請在上方「自訂產業鏈」編輯`
+            : state.custom[group.id]
+              ? "目前使用自訂分段"
+              : "目前使用教材原分段"}
         </span>
       </div>
 
@@ -148,6 +159,8 @@ export function RosterEditor({
             edit={edit}
             targets={targets}
             ensureCustom={ensureCustom}
+            groupId={group.id}
+            isCustomChain={isCustomChain}
           />
         ))}
       </div>
@@ -174,7 +187,7 @@ export function RosterEditor({
                 update((d) => {
                   d.originalOnly = on;
                 });
-                notify(on ? "已切回教材原表 74 檔" : "已含補充個股，記得查證");
+                notify(on ? "已切回教材原表" : "已含補充個股，記得查證");
               }}
               className="h-4 w-4 accent-amber-600"
             />
@@ -193,6 +206,8 @@ function SubBlock({
   edit,
   targets,
   ensureCustom,
+  groupId,
+  isCustomChain,
 }: {
   sub: LaidOutSub;
   state: FlowState;
@@ -200,9 +215,17 @@ function SubBlock({
   edit: boolean;
   targets: LaidOutSub[];
   ensureCustom: (draft: FlowState) => { subs: { id: string; name: string }[]; assign: Record<string, string> };
+  groupId: string;
+  isCustomChain: boolean;
 }) {
   const subOn = !state.offSubs[sub.key] && !sub.unassigned;
   const addedHere = sub.stocks.filter((s) => s.added).length;
+  const ownHere = sub.stocks.filter((s) => s.own).length;
+  // 教材群組、單一原分類、非編輯模式才提供「＋ 加個股」（自建個股掛在該原分類下）
+  const canAddExtra = !isCustomChain && !edit && !sub.unassigned && sub.origins.length === 1;
+  const extraKey = sub.origins[0];
+  const extraRows = (state.extraStocks?.[groupId]?.[extraKey] ?? []);
+  const showExtra = !!state.open[`extra:${sub.key}`];
 
   return (
     <div
@@ -249,6 +272,9 @@ function SubBlock({
         {addedHere > 0 && !state.originalOnly && (
           <span className="text-sm text-slate-400">含補 {addedHere}</span>
         )}
+        {ownHere > 0 && !isCustomChain && (
+          <span className="text-sm text-amber-600">含自建 {ownHere}</span>
+        )}
         <span className="text-sm tabular-nums text-slate-400">
           {sub.unassigned
             ? `${sub.stocks.length} 檔未分配`
@@ -287,10 +313,14 @@ function SubBlock({
           return (
             <label
               key={`${s.origin}|${s.code}`}
-              title={`${s.added ? "非教材原表，Claude 補充，需自行查證" : "教材原表"}　原分類：${s.origin}`}
+              title={
+                s.own
+                  ? "自建個股：段位未定，代號與名稱需自行查證"
+                  : `${s.added ? "非教材原表，Claude 補充，需自行查證" : "教材原表"}　原分類：${s.origin}`
+              }
               className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-sm tabular-nums ${
                 s.added ? "border-dashed" : ""
-              } ${
+              } ${s.own ? "border-amber-400/70" : ""} ${
                 isSeed
                   ? "border-amber-400 bg-amber-50 font-semibold text-slate-900"
                   : "border-slate-300 bg-white text-slate-600"
@@ -315,6 +345,11 @@ function SubBlock({
               {s.added && (
                 <span className="rounded border border-slate-400 px-1 text-sm leading-tight text-slate-400">
                   補
+                </span>
+              )}
+              {s.own && (
+                <span className="rounded border border-amber-400 px-1 text-sm leading-tight text-amber-600">
+                  自建
                 </span>
               )}
               {edit ? (
@@ -344,6 +379,39 @@ function SubBlock({
           );
         })}
       </div>
+      {canAddExtra && (
+        <div className="border-t border-slate-200 px-3 py-2">
+          <button
+            type="button"
+            className="text-sm text-[color:var(--gold)] underline-offset-2 hover:underline"
+            onClick={() =>
+              update((d) => {
+                d.open[`extra:${sub.key}`] = !showExtra;
+              })
+            }
+          >
+            {showExtra ? "▾" : "▸"} ＋ 加個股（自建，段位未定，最多 {CHAIN_LIMITS.extraPerSegment} 檔）
+          </button>
+          {showExtra && (
+            <div className="mt-2">
+              <StockRowsEditor
+                rows={extraRows}
+                max={CHAIN_LIMITS.extraPerSegment}
+                onChange={(rows) =>
+                  update((d) => {
+                    if (!d.extraStocks[groupId]) d.extraStocks[groupId] = {};
+                    if (rows.length) d.extraStocks[groupId][extraKey] = rows;
+                    else {
+                      delete d.extraStocks[groupId][extraKey];
+                      if (!Object.keys(d.extraStocks[groupId]).length) delete d.extraStocks[groupId];
+                    }
+                  })
+                }
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -392,7 +460,9 @@ export function ThresholdTable({ subs }: { subs: LaidOutSub[] }) {
                   </>
                 ) : (
                   <td colSpan={5} className="border-b border-slate-200 px-2 py-1.5 text-amber-600">
-                    混合了 {sub.origins.map((o) => SEGMENTS[o].short).join("、")} 的個股，沒有單一門檻可用——請自行決定，或把它再拆細
+                    {sub.origins.length === 0
+                      ? "自建子段沒有教材門檻——沒有單一門檻可用，請自己訂或再拆細"
+                      : `混合了 ${sub.origins.map((o) => SEGMENTS[o].short).join("、")} 的個股，沒有單一門檻可用——請自行決定，或把它再拆細`}
                   </td>
                 )}
               </tr>
@@ -405,8 +475,8 @@ export function ThresholdTable({ subs }: { subs: LaidOutSub[] }) {
         {mixed && (
           <>
             <br />
-            <b className="text-slate-600">你自訂的子段跨了不同原分類</b>
-            ，門檻無法自動沿用。這通常代表那一段還可以再拆，或是你有意要跨類比較——後者請自己訂一條門檻，別混用。
+            <b className="text-slate-600">有子段沒有教材門檻可沿用</b>
+            ：跨原分類的自訂子段，或自訂產業鏈的自建子段。這通常代表那一段還可以再拆，或是你有意要跨類比較——請自己訂一條門檻，本表不代填。
           </>
         )}
       </p>
