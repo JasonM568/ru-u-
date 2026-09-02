@@ -5,6 +5,8 @@ import { requireEnrollment, requireInstructor } from "@/lib/auth";
 import { cardIsEmpty, cardToRow, sanitizeCard } from "@/lib/flow/cloud";
 import { reconcileFromStrings } from "@/lib/flow/reconcile";
 import { sanitizeSplitConfig } from "@/lib/flow/config";
+import { MAX_RUNS, sanitizeState, type RunSummary } from "@/lib/flow/runs";
+import type { FlowState } from "@/lib/flow/state";
 
 export type SaveThesisCardResult =
   | { ok: true; id: string; updatedAt: string }
@@ -22,6 +24,7 @@ export async function saveThesisCard(payload: {
   card: string;
   groupId?: string;
   asOf?: string;
+  runId?: string | null;
 }): Promise<SaveThesisCardResult> {
   const { supabase, userId } = await requireEnrollment();
 
@@ -36,11 +39,15 @@ export async function saveThesisCard(payload: {
     return { ok: false, error: "至少填標的代號、名稱或核心論點，再存雲端" };
   }
 
-  const row = cardToRow(tc, {
-    userId,
-    groupId: payload.groupId?.slice(0, 50) ?? null,
-    asOf: payload.asOf?.slice(0, 50) ?? null,
-  });
+  const row = {
+    ...cardToRow(tc, {
+      userId,
+      groupId: payload.groupId?.slice(0, 50) ?? null,
+      asOf: payload.asOf?.slice(0, 50) ?? null,
+    }),
+    // 回連作業存檔；不是合法 uuid 就不連（RLS 會擋別人的存檔，這裡先不讓壞值進資料庫）
+    run_id: payload.runId && /^[0-9a-f-]{36}$/i.test(payload.runId) ? payload.runId : null,
+  };
   const now = new Date().toISOString();
 
   if (tc.id) {
@@ -189,4 +196,90 @@ export async function unpublishFlowConfig(groupId: string): Promise<ActionResult
   const { error } = await supabase.schema("elite").from("flow_configs").delete().eq("group_id", groupId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+// ── 作業存檔（階段五） ──
+
+export type SaveRunResult = { ok: true; id: string; updatedAt: string } | { ok: false; error: string };
+
+/** 讀一個存檔的完整狀態（RLS：本人或講師）。 */
+export async function loadRun(id: string): Promise<{ ok: true; state: FlowState; title: string; updatedAt: string } | { ok: false; error: string }> {
+  const { supabase } = await requireEnrollment();
+  const { data, error } = await supabase
+    .schema("elite")
+    .from("flow_runs")
+    .select("state, title, updated_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: "找不到這個存檔" };
+  return { ok: true, state: sanitizeState(data.state), title: data.title, updatedAt: data.updated_at };
+}
+
+/**
+ * 存整份控制台狀態。有 id 就更新（RLS 限本人），沒有就新建（每人 MAX_RUNS 檔，server 先數、trigger 保底）。
+ * state 一律經 sanitizeState：每張交棒卡截到 MAX_CARD_CHARS、非法欄位丟掉。
+ */
+export async function saveRun(payload: { id?: string | null; title: string; state: string }): Promise<SaveRunResult> {
+  const { supabase, userId } = await requireEnrollment();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload.state);
+  } catch {
+    return { ok: false, error: "存檔資料無法解析" };
+  }
+  const state = sanitizeState(parsed);
+  const title = payload.title.trim().slice(0, 80);
+  const now = new Date().toISOString();
+
+  if (payload.id) {
+    const { data, error } = await supabase
+      .schema("elite")
+      .from("flow_runs")
+      .update({ title, state, updated_at: now })
+      .eq("id", payload.id)
+      .eq("user_id", userId)
+      .select("id, updated_at")
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (data) return { ok: true, id: data.id, updatedAt: data.updated_at };
+    return { ok: false, error: "找不到這個存檔（可能已被刪除）" };
+  }
+
+  const { count } = await supabase
+    .schema("elite")
+    .from("flow_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if ((count ?? 0) >= MAX_RUNS) {
+    return { ok: false, error: `作業存檔已達上限 ${MAX_RUNS} 檔，請先刪除舊的存檔` };
+  }
+
+  const { data, error } = await supabase
+    .schema("elite")
+    .from("flow_runs")
+    .insert({ user_id: userId, title, state, updated_at: now })
+    .select("id, updated_at")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id, updatedAt: data.updated_at };
+}
+
+export async function deleteRun(id: string): Promise<ActionResult> {
+  const { supabase, userId } = await requireEnrollment();
+  const { error } = await supabase.schema("elite").from("flow_runs").delete().eq("id", id).eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** 存檔列表（不含 state）。 */
+export async function listRuns(): Promise<RunSummary[]> {
+  const { supabase, userId } = await requireEnrollment();
+  const { data } = await supabase
+    .schema("elite")
+    .from("flow_runs")
+    .select("id, title, updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as RunSummary[];
 }

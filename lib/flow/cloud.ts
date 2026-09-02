@@ -54,12 +54,13 @@ export type ThesisCardRow = {
   crs_up1: string;
   crs_up2: string;
   weakness: string;
+  run_id?: string | null;
   created_at: string;
   updated_at: string;
 };
 
 /** 寫入用（不含 id／時間戳，由資料庫決定）。 */
-export type ThesisCardInsert = Omit<ThesisCardRow, "id" | "created_at" | "updated_at">;
+export type ThesisCardInsert = Omit<ThesisCardRow, "id" | "created_at" | "updated_at" | "run_id">;
 
 const MAX_TEXT = 4000;
 

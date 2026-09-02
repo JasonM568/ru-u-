@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { PublishedConfig } from "@/lib/flow/config";
+import type { RunSummary } from "@/lib/flow/runs";
 
 /**
  * 控制台是純客戶端工具，狀態存在瀏覽器 localStorage。
@@ -18,10 +19,12 @@ export function FlowConsoleLoader({
   userId,
   isInstructor,
   configs,
+  runs,
 }: {
   userId: string;
   isInstructor: boolean;
   configs: PublishedConfig[];
+  runs: RunSummary[];
 }) {
-  return <FlowConsole userId={userId} isInstructor={isInstructor} configs={configs} />;
+  return <FlowConsole userId={userId} isInstructor={isInstructor} configs={configs} initialRuns={runs} />;
 }

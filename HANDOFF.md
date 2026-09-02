@@ -30,7 +30,7 @@ Next.js 16（App Router，**middleware 已改名 `proxy.ts`**）＋ TypeScript �
 ⚠️ 這是**共用正式庫**（239 會員的 daily_reports/points 等都在裡面）。本系統所有表都隔離在獨立 **`elite` schema**，**絕不可污染 `public`**。
 
 **9 張表**（`elite.` schema）：
-`enrollments`（名冊＝權限來源）、`questionnaire_responses`（問卷）、`assessments`（成果驗收，講師 only）、`team_meetings`、`trade_ledger`、`reviews`（團隊三表）、`process_notes`（孵化過程，講師 only）、`course_materials`（教材 metadata）、`course_videos`（影片連結，2026-07-31 新增；影片本體放 YouTube/Vimeo，系統只存連結做嵌入，不吃 egress）、`thesis_cards`（投資論點卡，2026-09-02 新增；本人＋講師可見，講師不可改，cc_* 由 server 重算）、`thesis_reconciliations`（T+20 對帳，2026-09-02 新增；一卡一筆，四象限由 server 重算，講師只能看）、`flow_configs`（講師下發的分段設定，2026-09-02 新增；一群組一份，講師寫、名冊內讀）。
+`enrollments`（名冊＝權限來源）、`questionnaire_responses`（問卷）、`assessments`（成果驗收，講師 only）、`team_meetings`、`trade_ledger`、`reviews`（團隊三表）、`process_notes`（孵化過程，講師 only）、`course_materials`（教材 metadata）、`course_videos`（影片連結，2026-07-31 新增；影片本體放 YouTube/Vimeo，系統只存連結做嵌入，不吃 egress）、`thesis_cards`（投資論點卡，2026-09-02 新增；本人＋講師可見，講師不可改，cc_* 由 server 重算）、`thesis_reconciliations`（T+20 對帳，2026-09-02 新增；一卡一筆，四象限由 server 重算，講師只能看）、`flow_configs`（講師下發的分段設定，2026-09-02 新增；一群組一份，講師寫、名冊內讀）、`flow_runs`（作業存檔，2026-09-02 新增；整份控制台狀態，每人 30 檔上限由 trigger 保底，本人讀寫、講師看）。
 
 **Storage**：私有 bucket `elite-materials`（課程教材，2026-07-19 新增）。講師上傳（txt/jpg/png/webp/pdf/zip，單檔 30MB）、名冊內學員下載（1 小時 signed URL）。同名檔案上傳前有提醒防呆。schema/bucket 變更是用 MCP `apply_migration` 直打正式庫，repo 內無 migration 檔（專案慣例）。⚠️ 該 Supabase 專案掛在「TJ's projects」組織 **Pro 方案**（月含 250GB egress），教材下載流量計入、與 QBC 全站共用。
 

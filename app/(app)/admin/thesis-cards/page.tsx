@@ -6,6 +6,8 @@ import { rowToCard, type ReconciliationRow, type ThesisCardRow } from "@/lib/flo
 import { OUTCOME_LABEL, OUTCOME_TONE, type Outcome } from "@/lib/flow/reconcile";
 import { groupById } from "@/lib/flow/segments";
 import { thesisText } from "@/lib/flow/thesis";
+import { sanitizeState } from "@/lib/flow/runs";
+import { CARD_LABEL, type CardId } from "@/lib/flow/prompts";
 
 export const metadata = {
   title: "論點卡總覽 — 菁英班孵化系統",
@@ -29,6 +31,14 @@ export default async function AdminThesisCardsPage() {
     supabase.schema("elite").from("thesis_reconciliations").select("*"),
     supabase.schema("elite").from("enrollments").select("user_id, display_name, team_id, class_role"),
   ]);
+
+  // 論點卡回連的作業存檔（講師 RLS 可 select），只撈有被連到的
+  const runIds = [...new Set(((cards ?? []) as ThesisCardRow[]).map((c) => c.run_id).filter((x): x is string => !!x))];
+  const { data: runRows } = runIds.length
+    ? await supabase.schema("elite").from("flow_runs").select("id, title, state").in("id", runIds)
+    : { data: [] as { id: string; title: string; state: unknown }[] };
+  const runOf = new Map((runRows ?? []).map((r) => [r.id as string, { title: r.title as string, state: sanitizeState(r.state) }]));
+  const CARD_IDS: CardId[] = ["L0", "L1", "L2", "XS", "L3", "L4"];
 
   const nameOf = new Map((members ?? []).map((m) => [m.user_id as string, m.display_name as string | null]));
   const teamOf = new Map((members ?? []).map((m) => [m.user_id as string, m.team_id as number | null]));
@@ -155,6 +165,27 @@ export default async function AdminThesisCardsPage() {
                             </div>
                             {r.reflection && <p className="mt-2 whitespace-pre-wrap text-slate-700">{r.reflection}</p>}
                           </div>
+                        )}
+
+                        {row.run_id && runOf.get(row.run_id) && (
+                          <details className="mt-3">
+                            <summary className="cursor-pointer text-sm text-[color:var(--gold)] hover:underline">
+                              作業存檔「{runOf.get(row.run_id)!.title || "（未命名）"}」的六張交棒卡
+                            </summary>
+                            <div className="mt-2 space-y-2">
+                              {CARD_IDS.map((id) => {
+                                const txt = runOf.get(row.run_id!)!.state.cards[id];
+                                return (
+                                  <div key={id}>
+                                    <div className="text-sm font-semibold text-slate-500">{CARD_LABEL[id]}</div>
+                                    <pre className="mt-1 max-h-[240px] overflow-auto rounded-lg border border-slate-200 bg-white/40 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                                      {txt || "（未填）"}
+                                    </pre>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </details>
                         )}
 
                         <details className="mt-3">

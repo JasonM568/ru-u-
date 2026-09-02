@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, PageHeader, Field, Input, Select } from "@/components/ui";
 import {
   CRS_MATRIX,
@@ -31,6 +31,9 @@ import {
 } from "@/lib/flow/state";
 import { RosterEditor, ThresholdTable } from "./RosterEditor";
 import type { PublishedConfig } from "@/lib/flow/config";
+import { forkForNextTarget, isBlankState, runTitle, type RunSummary } from "@/lib/flow/runs";
+import { deleteRun, loadRun, saveRun } from "./actions";
+import { RunBar, type SaveStatus } from "./RunBar";
 import { ThesisCardForm, cccOf, thesisText } from "./ThesisCardForm";
 
 type StationStatus = { kind: "wait" | "open" | "blocked" | "done"; label: string };
@@ -50,14 +53,227 @@ export function FlowConsole({
   userId,
   isInstructor,
   configs,
+  initialRuns,
 }: {
   userId: string;
   isInstructor: boolean;
   configs: PublishedConfig[];
+  initialRuns: RunSummary[];
 }) {
   const storageKey = `flow5:${userId}`;
+  const runKey = `${storageKey}:run`;
   const [state, setState] = useState<FlowState>(() => loadState(storageKey));
   const [toast, setToast] = useState("");
+
+  // ── 作業存檔（階段五）──
+  // localStorage 仍是本機快取；雲端 elite.flow_runs 才是正本。改動後 2.5 秒自動存。
+  const [runs, setRuns] = useState<RunSummary[]>(initialRuns);
+  const [runId, setRunId] = useState<string | null>(() => {
+    try {
+      return window.localStorage.getItem(runKey);
+    } catch {
+      return null;
+    }
+  });
+  const [runName, setRunName] = useState("");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const stateRef = useRef(state);
+  const runIdRef = useRef(runId);
+  const nameRef = useRef(runName);
+  const skipNextSaveRef = useRef(true); // 初次 render 與「從雲端載入」不算變更
+  const savingRef = useRef(false);
+  const pendingRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+  const doSaveRef = useRef<() => Promise<void>>(async () => {});
+  // ref 同步放在 effect（不在 render 期間改 ref）；宣告在其他 effect 之前，確保先同步
+  useEffect(() => {
+    stateRef.current = state;
+    runIdRef.current = runId;
+    nameRef.current = runName;
+  });
+
+  const persistRunId = useCallback(
+    (id: string | null) => {
+      setRunId(id);
+      try {
+        if (id) window.localStorage.setItem(runKey, id);
+        else window.localStorage.removeItem(runKey);
+      } catch {
+        // 快取寫不進去不影響雲端
+      }
+    },
+    [runKey],
+  );
+
+  const doSave = useCallback(async () => {
+    const s = stateRef.current;
+    const id = runIdRef.current;
+    if (!id && isBlankState(s)) {
+      setSaveStatus("idle");
+      return;
+    }
+    if (savingRef.current) {
+      pendingRef.current = true;
+      return;
+    }
+    savingRef.current = true;
+    setSaveStatus("saving");
+    const title = nameRef.current || runTitle(s);
+    const res = await saveRun({ id, title, state: JSON.stringify(s) });
+    savingRef.current = false;
+    if (!res.ok) {
+      setSaveStatus("error");
+      setSaveError(res.error);
+      return;
+    }
+    if (!id) persistRunId(res.id);
+    setRunName(title);
+    setSavedAt(res.updatedAt);
+    setSaveStatus("saved");
+    setRuns((prev) => [{ id: res.id, title, updated_at: res.updatedAt }, ...prev.filter((r) => r.id !== res.id)]);
+    if (pendingRef.current) {
+      pendingRef.current = false;
+      void doSaveRef.current();
+    }
+  }, [persistRunId]);
+  useEffect(() => {
+    doSaveRef.current = doSave;
+  }, [doSave]);
+
+  const flush = useCallback(async () => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (saveStatus === "dirty" || pendingRef.current) await doSave();
+  }, [doSave, saveStatus]);
+
+  // 自動存檔：state 一變就排程，2.5 秒內沒再變才真的送
+  useEffect(() => {
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+    setSaveStatus("dirty");
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => void doSave(), 2500);
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, [state, doSave]);
+
+  const applyLoaded = useCallback((next: FlowState, id: string, title: string, at: string) => {
+    skipNextSaveRef.current = true;
+    setState(next);
+    setRunName(title);
+    setSavedAt(at);
+    setSaveStatus("saved");
+    setSaveError("");
+    persistRunId(id);
+  }, [persistRunId]);
+
+  // 進頁：有目前存檔就從雲端載入（別台裝置可能改過）；沒有就開最近一檔；都沒有但本機有舊資料就轉成第一個存檔
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const id = runId;
+      const local = state;
+      const known = id && initialRuns.some((r) => r.id === id) ? id : initialRuns[0]?.id ?? null;
+      if (known && (id === known || isBlankState(local))) {
+        const res = await loadRun(known);
+        if (cancelled) return;
+        if (res.ok) {
+          applyLoaded(res.state, known, res.title, res.updatedAt);
+          return;
+        }
+      }
+      if (!isBlankState(local)) {
+        persistRunId(null);
+        await doSave();
+        if (!cancelled) setToast("已把這台裝置的作業轉成雲端存檔");
+      } else {
+        persistRunId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // 只在進頁跑一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const switchRun = useCallback(
+    async (id: string) => {
+      if (id === runIdRef.current) return;
+      setBusy(true);
+      await flush();
+      const res = await loadRun(id);
+      if (res.ok) applyLoaded(res.state, id, res.title, res.updatedAt);
+      else setToast(`載入失敗：${res.error}`);
+      setBusy(false);
+    },
+    [applyLoaded, flush],
+  );
+
+  const newRun = useCallback(async () => {
+    setBusy(true);
+    await flush();
+    skipNextSaveRef.current = true;
+    setState(blankState());
+    setRunName("");
+    setSavedAt(null);
+    setSaveStatus("idle");
+    persistRunId(null);
+    setBusy(false);
+    setToast("已開新作業，開始填寫後會自動建立存檔");
+  }, [flush, persistRunId]);
+
+  const forkRun = useCallback(async () => {
+    setBusy(true);
+    await flush();
+    const next = forkForNextTarget(stateRef.current);
+    persistRunId(null);
+    setRunName("");
+    setSavedAt(null);
+    setState(next); // 不跳過：這算變更，2.5 秒後會自動建成新存檔
+    setBusy(false);
+    setToast("已保留 L0～交集，清掉 L3 之後；輸入新代號即可接著跑");
+  }, [flush, persistRunId]);
+
+  const renameRun = useCallback(
+    (title: string) => {
+      setRunName(title);
+      nameRef.current = title;
+      void doSave();
+    },
+    [doSave],
+  );
+
+  const removeRun = useCallback(async () => {
+    const id = runIdRef.current;
+    if (!id) return;
+    if (!window.confirm(`刪除存檔「${runName || runTitle(stateRef.current)}」？刪了就找不回來（已存雲端的論點卡不受影響）。`)) return;
+    setBusy(true);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    const res = await deleteRun(id);
+    if (!res.ok) {
+      setToast(`刪除失敗：${res.error}`);
+      setBusy(false);
+      return;
+    }
+    setRuns((prev) => prev.filter((r) => r.id !== id));
+    skipNextSaveRef.current = true;
+    setState(blankState());
+    setRunName("");
+    setSavedAt(null);
+    setSaveStatus("idle");
+    persistRunId(null);
+    setBusy(false);
+    setToast("已刪除存檔");
+  }, [persistRunId, runName]);
 
   useEffect(() => {
     try {
@@ -207,6 +423,22 @@ export function FlowConsole({
             </button>
           </div>
         }
+      />
+
+      <RunBar
+        runs={runs}
+        currentId={runId}
+        currentTitle={runName || runTitle(state)}
+        status={saveStatus}
+        savedAt={savedAt}
+        errorMsg={saveError}
+        busy={busy}
+        onSwitch={(id) => void switchRun(id)}
+        onNew={() => void newRun()}
+        onFork={() => void forkRun()}
+        onRename={renameRun}
+        onDelete={() => void removeRun()}
+        onSaveNow={() => void doSave()}
       />
 
       {/* 起手設定 */}
@@ -383,6 +615,7 @@ export function FlowConsole({
           subs={subs}
           configs={configs}
           isInstructor={isInstructor}
+          runId={runId}
         />
       ))}
 
@@ -427,6 +660,7 @@ function StationBlock({
   subs,
   configs,
   isInstructor,
+  runId,
 }: {
   station: Station;
   state: FlowState;
@@ -438,6 +672,7 @@ function StationBlock({
   subs: ReturnType<typeof activeSubs>;
   configs: PublishedConfig[];
   isInstructor: boolean;
+  runId: string | null;
 }) {
   const open = state.open[st.id] ?? (st.id === "PRE" || status.kind === "blocked");
   const prompt = st.prompt(ctx);
@@ -561,7 +796,7 @@ function StationBlock({
                 </h3>
                 <span className="text-sm text-slate-400">填完按「儲存到雲端」，換裝置也看得到</span>
               </div>
-              <ThesisCardForm state={state} update={update} notify={notify} />
+              <ThesisCardForm state={state} update={update} notify={notify} runId={runId} />
             </div>
           )}
 
