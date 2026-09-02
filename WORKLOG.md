@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-09-02　作業流控制台 — 階段二：論點卡上雲
+
+> 在 `feat/thesis-cloud` 分支。資料表與 RLS 已建在正式庫（`elite.thesis_cards`），程式待使用者驗收後合 main。
+
+**資料表 `elite.thesis_cards`**（migration `elite_thesis_cards`）：一人可存多張卡；欄位對應論點卡七欄（證據與證偽條件各存 jsonb 三筆），另有 `group_id`／`as_of` 記控制台脈絡，`cc_l3`／`cc_l4`／`cc_total`／`cc_ratio`／`cc_pass` 五欄由 server 端重算。RLS：select 本人或 `elite.is_instructor()`；insert／update／delete 皆 `user_id = auth.uid() and elite.is_enrolled()`，**講師不能改也不能刪學員的卡**。
+
+**RLS 雙向實測（10 項全過）**：模擬學員 A 寫入後——A select 1；他人 B select 0、update 0 列、冒充 A insert 被拒 42501；講師 select 1、update 0 列、delete 0 列；A 的欄位未被改動、A delete 1；anon 被拒。測試列已刪。
+
+**程式**
+- `lib/flow/cloud.ts`（純函式）：`sanitizeCard` 把前端 JSON 收斂成合法 ThesisCard（缺欄補空、證據與條件固定三筆、ccMode 與涵蓋層次只收合法值、多餘欄位丟掉）；`cardToRow` 產生資料列並用 `lib/flow/ccc.ts` 重算 cc_*；`rowToCard` 還原。
+- `lib/flow/thesis.ts`：`cccOf`／`thesisText` 從 ThesisCardForm 抽出成純函式（server component 不能從 "use client" 模組 import 一般函式），ThesisCardForm 保留 re-export。
+- `app/(app)/flow/actions.ts`：`saveThesisCard` 收 `{ card: JSON字串, groupId, asOf }`，回傳 `{ ok, id, updatedAt }`。**與問卷不同，這裡不 redirect**——控制台是純客戶端工具，存完要把 id 寫回 localStorage 的 `state.tc.id`，所以直接回傳結果。有 id 就 update（RLS 限本人，對不上時當新卡 insert）。`deleteThesisCard` 走傳統 form action ＋ redirect。
+- `app/(app)/flow/cards/page.tsx`「我的論點卡」：列表（代號名稱、群組／子段／分類、CCC 徽章、最後更新）、展開整張卡、`CardActions`（載入到控制台＝改寫 localStorage 的 `state.tc` 後導回 `/flow`／複製／刪除含 confirm）。
+- ThesisCardForm 加「儲存到雲端／更新雲端這張卡」按鈕與狀態列；「清空這張卡」會同時清掉 id（清空＝開新卡，不會把雲端那張洗成空白）。控制台標頭加「我的論點卡」連結。
+- 測試：`scripts/test-flow.ts` 加 5 項（sanitize、cc 重算兩組教材數字、來回序列化、空卡判定）→ 36/36。
+
+**實測（學院測試帳號，dev）**：填 100/105/108/0.35 存雲端 → 資料庫 cc_ratio 0.2286、cc_pass true；改 0.15 按更新 → 0.5333、false；「我的論點卡」顯示「CCC 53.3% 本案不成立」；清掉本機 tc 後按「載入到控制台」→ 卡連同 id 回到控制台；刪除 → 列表空、資料庫 0 列。
+
+**驗證**：tsc 通過｜ESLint 0 錯誤（既有 1 警告）｜`npm run test` 36/36｜`npm run build` 通過（新增路由 `/flow/cards`）。
+
+---
+
 ## 2026-09-02　作業流控制台 — UAT 11 步通過、字級放大
 
 > UAT 已過、build／lint／test 全綠，**2026-09-02 已合併 main 上線**（merge 3f8aed8）。

@@ -7,6 +7,7 @@
  */
 
 import { computeCcc, toNum } from "../lib/flow/ccc";
+import { cardIsEmpty, cardToRow, rowToCard, sanitizeCard, type ThesisCardRow } from "../lib/flow/cloud";
 import { SEGMENTS, GROUPS } from "../lib/flow/segments";
 import * as P from "../lib/flow/prompts";
 import {
@@ -268,6 +269,42 @@ add("只寫內容沒寫檢查時點 → 仍算沒寫完", () => {
 function near(a: number | null, b: number, eps = 0.001): boolean {
   return a !== null && Math.abs(a - b) < eps;
 }
+
+// ── 階段二：論點卡上雲的序列化與 server 端重算 ──
+add("sanitizeCard：亂七八糟的輸入會收斂成合法卡，多餘欄位丟掉", () => {
+  const tc = sanitizeCard({ code: " 1519 ", name: "華城", ccMode: "bogus", falsifiers: [{ t: "x", lvl: "亂填" }], evil: 1 });
+  return (
+    tc.code === "1519" && tc.name === "華城" && tc.ccMode === "max" &&
+    tc.evidence.length === 3 && tc.falsifiers.length === 3 &&
+    tc.falsifiers[0].t === "x" && tc.falsifiers[0].lvl === "公司自身" &&
+    !("evil" in tc) && tc.id === undefined
+  );
+});
+add("cardToRow：cc_* 由 server 重算，不信前端（教材範例 100/105/108/0.35 → 22.9% 通過）", () => {
+  const tc = sanitizeCard({ code: "1519", px: "100", p3: "105", p4: "108", expectedReturn: "0.35", ccMode: "max" });
+  const row = cardToRow(tc, { userId: "u1", groupId: "pwr" });
+  return (
+    Math.abs((row.cc_l3 ?? 0) - 0.05) < 1e-9 && Math.abs((row.cc_l4 ?? 0) - 0.08) < 1e-9 &&
+    Math.abs((row.cc_total ?? 0) - 0.08) < 1e-9 && Math.abs((row.cc_ratio ?? 0) - 0.08 / 0.35) < 1e-9 &&
+    row.cc_pass === true && row.user_id === "u1" && row.group_id === "pwr"
+  );
+});
+add("cardToRow：預期報酬 0.15 → 53.3% 本案不成立", () => {
+  const row = cardToRow(sanitizeCard({ code: "1519", px: "100", p3: "105", p4: "108", expectedReturn: "0.15" }), { userId: "u1" });
+  return row.cc_pass === false && Math.abs((row.cc_ratio ?? 0) - 0.08 / 0.15) < 1e-9;
+});
+add("rowToCard ∘ cardToRow：來回不掉欄位", () => {
+  const src = sanitizeCard({ code: "1519", name: "華城", sub: "重電", cls: "瓶頸段", date: "2026/09/02", thesis: "T", bomb: "B",
+    evidence: [{ t: "e1", src: "s", per: "2026Q2" }, { t: "e2", src: "", per: "" }, { t: "", src: "", per: "" }],
+    falsifiers: [{ t: "f1", when: "2026/11", lvl: "供給端" }, { t: "", when: "", lvl: "需求端" }, { t: "", when: "", lvl: "公司自身" }],
+    px: "100", p3: "105", p4: "108", expectedReturn: "0.35", ccMode: "sum", positionForm: "分批", bandLow: "98", bandHigh: "102",
+    tr1: "a", tr2: "b", tr3: "c", positionCap: "10%", crsUp1: "減半", crsUp2: "清倉", weakness: "W" });
+  const row = cardToRow(src, { userId: "u1" });
+  const back = rowToCard({ ...row, id: "id-1", created_at: "", updated_at: "" } as ThesisCardRow);
+  const { id, ...rest } = back;
+  return id === "id-1" && JSON.stringify(rest) === JSON.stringify(src);
+});
+add("cardIsEmpty：空卡不准存；有代號就算有內容", () => cardIsEmpty(sanitizeCard({})) && !cardIsEmpty(sanitizeCard({ code: "1519" })));
 
 let pass = 0;
 for (const c of cases) {

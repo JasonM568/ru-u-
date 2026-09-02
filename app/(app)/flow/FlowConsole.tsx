@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, PageHeader, Field, Input, Select } from "@/components/ui";
 import {
@@ -188,9 +189,14 @@ export function FlowConsole({ userId }: { userId: string }) {
         title="五層作業流控制台"
         subtitle="AI 供應鏈．八道指令交棒版　輸入股票代號，產生每一層要用的指令與檢核"
         action={
-          <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-sm" onClick={exportLog}>
-            匯出作業紀錄
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/flow/cards" className="btn-ghost rounded-lg px-3 py-1.5 text-sm">
+              我的論點卡
+            </Link>
+            <button type="button" className="btn-ghost rounded-lg px-3 py-1.5 text-sm" onClick={exportLog}>
+              匯出作業紀錄
+            </button>
+          </div>
         }
       />
 
@@ -538,7 +544,7 @@ function StationBlock({
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                   論點卡
                 </h3>
-                <span className="text-sm text-slate-400">目前存在這台裝置的瀏覽器裡</span>
+                <span className="text-sm text-slate-400">填完按「儲存到雲端」，換裝置也看得到</span>
               </div>
               <ThesisCardForm state={state} update={update} notify={notify} />
             </div>
