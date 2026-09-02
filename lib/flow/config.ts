@@ -10,35 +10,47 @@
  */
 
 import type { CcMode } from "./ccc";
+import { CHAIN_LIMITS, isCustomChainId, sanitizeCustomChain, sanitizeStockList, type CustomChain, type CustomChainStock } from "./chains";
 import { GROUPS, groupById } from "./segments";
-import type { CustomSplit, FlowState } from "./state";
+import { resolveGroup, type CustomSplit, type FlowState } from "./state";
 
-export const SPLIT_CONFIG_VERSION = 1;
+export const SPLIT_CONFIG_VERSION = 2;
 
 export type SplitConfig = {
-  v: 1;
+  /** v1：只有教材群組；v2：可帶自訂產業鏈（chain）與教材子段自建個股（extra）。讀取時兩者都收，輸出一律 v2。 */
+  v: 1 | 2;
+  /** 教材群組 id 或自訂鏈 id（c_ 開頭） */
   group: string;
   groupName: string;
+  /** 自訂產業鏈一律 null */
   custom: CustomSplit | null;
   originalOnly: boolean;
   offSubs: Record<string, boolean>;
   offStocks: Record<string, boolean>;
   /** 全隊須一致的 CCC 合計規則；舊格式沒有這欄，套用時不動 */
   ccMode?: CcMode;
+  /** v2：group 是自訂產業鏈時的完整定義（id 必等於 group） */
+  chain?: CustomChain;
+  /** v2：教材群組各分類的自建個股 */
+  extra?: Record<string, CustomChainStock[]>;
 };
 
 export function buildSplitConfig(state: FlowState): SplitConfig {
-  const group = groupById(state.groupId);
-  return {
+  const rg = resolveGroup(state);
+  const cfg: SplitConfig = {
     v: SPLIT_CONFIG_VERSION,
-    group: group.id,
-    groupName: group.name,
-    custom: state.custom[group.id] ?? null,
+    group: rg.id,
+    groupName: rg.name,
+    custom: rg.kind === "ai" ? (state.custom[rg.id] ?? null) : null,
     originalOnly: state.originalOnly,
     offSubs: state.offSubs,
     offStocks: state.offStocks,
     ccMode: state.tc.ccMode,
   };
+  if (rg.kind === "custom") cfg.chain = rg.custom;
+  const extra = state.extraStocks?.[rg.id];
+  if (rg.kind === "ai" && extra && Object.keys(extra).length) cfg.extra = extra;
+  return cfg;
 }
 
 const boolMap = (v: unknown): Record<string, boolean> => {
@@ -75,31 +87,69 @@ function sanitizeCustom(v: unknown): CustomSplit | null {
   return { subs, assign };
 }
 
-/** 不合法回 null。合法的定義：v=1、group 是已知比較群組、其餘欄位型別正確。 */
+/**
+ * 不合法回 null。合法：v 是 1 或 2；group 是教材群組，或是自訂鏈 id 且附上合法的 chain 定義（id 相同）。
+ * 輸出一律 v2。
+ */
 export function sanitizeSplitConfig(input: unknown): SplitConfig | null {
   if (!input || typeof input !== "object") return null;
   const o = input as Record<string, unknown>;
-  if (o.v !== SPLIT_CONFIG_VERSION) return null;
-  if (typeof o.group !== "string" || !GROUPS.some((g) => g.id === o.group)) return null;
-  const group = groupById(o.group);
-  const cfg: SplitConfig = {
-    v: 1,
-    group: group.id,
-    groupName: group.name,
-    custom: sanitizeCustom(o.custom),
+  if (o.v !== 1 && o.v !== 2) return null;
+  if (typeof o.group !== "string") return null;
+
+  const common = {
     originalOnly: o.originalOnly === true,
     offSubs: boolMap(o.offSubs),
     offStocks: boolMap(o.offStocks),
   };
-  if (o.ccMode === "max" || o.ccMode === "sum") cfg.ccMode = o.ccMode;
+  const ccMode = o.ccMode === "max" || o.ccMode === "sum" ? o.ccMode : undefined;
+
+  if (isCustomChainId(o.group)) {
+    const chain = sanitizeCustomChain(o.chain);
+    if (!chain || chain.id !== o.group) return null;
+    const cfg: SplitConfig = { v: 2, group: chain.id, groupName: chain.name, custom: null, ...common, chain };
+    if (ccMode) cfg.ccMode = ccMode;
+    return cfg;
+  }
+
+  if (!GROUPS.some((g) => g.id === o.group)) return null;
+  const group = groupById(o.group);
+  const cfg: SplitConfig = {
+    v: 2,
+    group: group.id,
+    groupName: group.name,
+    custom: sanitizeCustom(o.custom),
+    ...common,
+  };
+  if (ccMode) cfg.ccMode = ccMode;
+  const extra = sanitizeExtra(o.extra, group.subs);
+  if (extra) cfg.extra = extra;
   return cfg;
 }
 
-/** 套進 draft（給 update() 用）。 */
+/** 教材群組各分類的自建個股：只收該群組的教材分類，每類上限 CHAIN_LIMITS.extraPerSegment。 */
+export function sanitizeExtra(v: unknown, subKeys: string[]): Record<string, CustomChainStock[]> | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const out: Record<string, CustomChainStock[]> = {};
+  const seen = new Set<string>();
+  for (const key of subKeys) {
+    const list = sanitizeStockList((v as Record<string, unknown>)[key], CHAIN_LIMITS.extraPerSegment, seen);
+    if (list.length) out[key] = list;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** 套進 draft（給 update() 用）。套用自訂鏈＝以同 id 複製進 draft.chains（會覆蓋同 id 的本地版本）。 */
 export function applySplitConfig(draft: FlowState, cfg: SplitConfig): void {
   draft.groupId = cfg.group;
+  if (cfg.chain) {
+    draft.chains[cfg.chain.id] = structuredClone(cfg.chain);
+    if (cfg.chain.wacc) draft.wacc = cfg.chain.wacc;
+  }
   if (cfg.custom) draft.custom[cfg.group] = cfg.custom;
   else delete draft.custom[cfg.group];
+  if (cfg.extra && Object.keys(cfg.extra).length) draft.extraStocks[cfg.group] = structuredClone(cfg.extra);
+  else delete draft.extraStocks[cfg.group];
   draft.originalOnly = cfg.originalOnly;
   draft.offSubs = { ...cfg.offSubs };
   draft.offStocks = { ...cfg.offStocks };

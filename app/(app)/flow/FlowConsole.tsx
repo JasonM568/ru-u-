@@ -8,8 +8,6 @@ import {
   GROUPS,
   MIGRATION_SIGNALS,
   RENT_PHASES,
-  SEGMENTS,
-  groupById,
 } from "@/lib/flow/segments";
 import { CARD_LABEL, type CardId, type PromptContext } from "@/lib/flow/prompts";
 import {
@@ -22,6 +20,8 @@ import {
 import {
   activeSubs,
   blankState,
+  layout,
+  resolveGroup,
   locateTicker,
   rosterText,
   seedStock,
@@ -30,6 +30,7 @@ import {
   type FlowState,
 } from "@/lib/flow/state";
 import { RosterEditor, ThresholdTable } from "./RosterEditor";
+import { ChainEditor } from "./ChainEditor";
 import type { PublishedConfig } from "@/lib/flow/config";
 import { forkForNextTarget, isBlankState, runTitle, type RunSummary } from "@/lib/flow/runs";
 import { deleteRun, loadRun, saveRun } from "./actions";
@@ -88,6 +89,10 @@ export function FlowConsole({
   const pendingRef = useRef(false);
   const timerRef = useRef<number | null>(null);
   const doSaveRef = useRef<() => Promise<void>>(async () => {});
+  // 世代計數：切換／新建／換標的／刪除時 +1；較舊世代的存檔回來時不准改目前的 id、標題、狀態列
+  const genRef = useRef(0);
+  // 有未存變更（用 ref 而非 state，避免 flush 讀到舊的 closure）
+  const dirtyRef = useRef(false);
   // ref 同步放在 effect（不在 render 期間改 ref）；宣告在其他 effect 之前，確保先同步
   useEffect(() => {
     stateRef.current = state;
@@ -120,10 +125,23 @@ export function FlowConsole({
       return;
     }
     savingRef.current = true;
+    dirtyRef.current = false;
+    const gen = genRef.current;
     setSaveStatus("saving");
     const title = nameRef.current || runTitle(s);
     const res = await saveRun({ id, title, state: JSON.stringify(s) });
     savingRef.current = false;
+    if (res.ok) {
+      setRuns((prev) => [{ id: res.id, title, updated_at: res.updatedAt }, ...prev.filter((r) => r.id !== res.id)]);
+    }
+    if (gen !== genRef.current) {
+      // 使用者已經切到別的作業：這次存檔只更新列表，不碰目前作業的 id／標題／狀態
+      if (pendingRef.current) {
+        pendingRef.current = false;
+        void doSaveRef.current();
+      }
+      return;
+    }
     if (!res.ok) {
       setSaveStatus("error");
       setSaveError(res.error);
@@ -133,7 +151,6 @@ export function FlowConsole({
     setRunName(title);
     setSavedAt(res.updatedAt);
     setSaveStatus("saved");
-    setRuns((prev) => [{ id: res.id, title, updated_at: res.updatedAt }, ...prev.filter((r) => r.id !== res.id)]);
     if (pendingRef.current) {
       pendingRef.current = false;
       void doSaveRef.current();
@@ -148,8 +165,10 @@ export function FlowConsole({
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (saveStatus === "dirty" || pendingRef.current) await doSave();
-  }, [doSave, saveStatus]);
+    if (dirtyRef.current || pendingRef.current) await doSave();
+    // 有存檔還在路上就等它回來，免得它帶著舊 id 把新作業的狀態寫錯地方
+    for (let i = 0; i < 100 && savingRef.current; i++) await new Promise((r) => window.setTimeout(r, 50));
+  }, [doSave]);
 
   // 自動存檔：state 一變就排程，2.5 秒內沒再變才真的送
   useEffect(() => {
@@ -157,6 +176,7 @@ export function FlowConsole({
       skipNextSaveRef.current = false;
       return;
     }
+    dirtyRef.current = true;
     setSaveStatus("dirty");
     if (timerRef.current) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => void doSave(), 2500);
@@ -210,6 +230,7 @@ export function FlowConsole({
       if (id === runIdRef.current) return;
       setBusy(true);
       await flush();
+      genRef.current += 1;
       const res = await loadRun(id);
       if (res.ok) applyLoaded(res.state, id, res.title, res.updatedAt);
       else setToast(`載入失敗：${res.error}`);
@@ -221,6 +242,9 @@ export function FlowConsole({
   const newRun = useCallback(async () => {
     setBusy(true);
     await flush();
+    genRef.current += 1;
+    nameRef.current = "";
+    dirtyRef.current = false;
     skipNextSaveRef.current = true;
     setState(blankState());
     setRunName("");
@@ -234,6 +258,8 @@ export function FlowConsole({
   const forkRun = useCallback(async () => {
     setBusy(true);
     await flush();
+    genRef.current += 1;
+    nameRef.current = "";
     const next = forkForNextTarget(stateRef.current);
     persistRunId(null);
     setRunName("");
@@ -265,6 +291,8 @@ export function FlowConsole({
       return;
     }
     setRuns((prev) => prev.filter((r) => r.id !== id));
+    genRef.current += 1;
+    nameRef.current = "";
     skipNextSaveRef.current = true;
     setState(blankState());
     setRunName("");
@@ -311,24 +339,25 @@ export function FlowConsole({
     [notify],
   );
 
-  const group = groupById(state.groupId);
+  const rg = resolveGroup(state);
   const subs = useMemo(() => activeSubs(state), [state]);
   const seed = useMemo(() => seedStock(state), [state]);
   const count = stockCount(state);
 
   const ctx: PromptContext = useMemo(
     () => ({
-      chain: group.chain,
+      chain: rg.chain,
+      chainKind: rg.kind,
       roster: rosterText(state),
       count,
       subNames: subNames(state),
-      l2note: group.l2note,
+      l2note: rg.l2note,
       wacc: state.wacc,
       target: seed ? `${seed.code} ${seed.name}` : "（尚未指定標的）",
       cards: state.cards,
       ccMode: state.tc.ccMode,
     }),
-    [state, group, count, seed],
+    [state, rg, count, seed],
   );
 
   const statusOf = useCallback(
@@ -353,13 +382,17 @@ export function FlowConsole({
 
   const exportLog = () => {
     const L: string[] = [];
-    L.push("# AI 供應鏈五層作業流　作業紀錄");
+    L.push(`# 五層作業流　作業紀錄（${rg.chain}）`);
     L.push("");
-    L.push(`- 比較群組：${group.name}（${group.chain}）`);
+    L.push(`- 比較群組：${rg.name}（${rg.chain}${rg.kind === "custom" ? "，自訂產業鏈" : ""}）`);
     L.push(`- 子段：${subNames(state).join("／") || "—"}`);
     L.push(
       `- 掃描名單：${count} 檔${
-        state.originalOnly ? "（只用教材原表）" : "（含補充個股，需查證）"
+        rg.kind === "custom"
+          ? "（自建個股，段位未定，需自行查證）"
+          : state.originalOnly
+            ? "（只用教材原表）"
+            : "（含補充個股，需查證）"
       }`,
     );
     L.push(`- L3 候選標的：${seed ? `${seed.code} ${seed.name}（${seed.prior}）` : "未指定"}`);
@@ -412,7 +445,7 @@ export function FlowConsole({
     <div className="flow-console">
       <PageHeader
         title="五層作業流控制台"
-        subtitle="AI 供應鏈．八道指令交棒版　輸入股票代號，產生每一層要用的指令與檢核"
+        subtitle="五層作業流．八道指令交棒版　輸入股票代號，產生每一層要用的指令與檢核"
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/flow/cards" className="btn-ghost rounded-lg px-3 py-1.5 text-sm">
@@ -454,17 +487,19 @@ export function FlowConsole({
                 update((d) => {
                   d.ticker = v;
                 });
+                // 目前名單裡有就不跳；教材群組間照舊自動跳；永遠不跳進或跳出自訂產業鏈
+                const inCurrent = layout(state).some((sub) => sub.stocks.some((x) => x.code === v));
+                if (inCurrent) return;
                 const hits = locateTicker(state, v);
-                if (hits.length && hits[0].group) {
-                  const gid = hits[0].group.id;
-                  if (!group.subs.some((s) => SEGMENTS[s].stocks.some((x) => x.code === v))) {
-                    update((d) => {
-                      d.groupId = gid;
-                    });
-                  }
-                  if (hits.length > 1) {
-                    notify(`${v} 橫跨 ${hits.map((h) => h.short).join("、")}，可自行改群組`);
-                  }
+                const teach = hits.find((h) => h.group);
+                if (rg.kind === "ai" && teach?.group) {
+                  const gid = teach.group.id;
+                  update((d) => {
+                    d.groupId = gid;
+                  });
+                }
+                if (hits.length > 1) {
+                  notify(`${v} 橫跨 ${hits.map((h) => h.short).join("、")}，可自行改群組`);
                 }
               }}
             />
@@ -474,16 +509,35 @@ export function FlowConsole({
               value={state.groupId}
               onChange={(e) => {
                 const v = e.target.value;
+                if (v === "__new") {
+                  update((d) => {
+                    d.open.chains = true;
+                  });
+                  notify("到下方「自訂產業鏈」按「＋ 新增產業鏈」");
+                  return;
+                }
                 update((d) => {
                   d.groupId = v;
+                  const c = d.chains[v];
+                  if (c?.wacc) d.wacc = c.wacc;
                 });
               }}
             >
-              {GROUPS.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}（{g.subs.length} 子段・{g.src}）
-                </option>
-              ))}
+              <optgroup label="教材原表（AI 供應鏈）">
+                {GROUPS.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}（{g.subs.length} 子段・{g.src}）
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="自訂產業鏈">
+                {Object.values(state.chains ?? {}).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}（{c.subs.length} 子段・自建）
+                  </option>
+                ))}
+                <option value="__new">＋ 新增自訂產業鏈…</option>
+              </optgroup>
             </Select>
           </Field>
           <Field label="資料日期">
@@ -498,7 +552,7 @@ export function FlowConsole({
               }}
             />
           </Field>
-          <Field label="參考 WACC（%）" hint="教材給的是電源段 8%，其他段請自行確認">
+          <Field label="參考 WACC（%）" hint="教材範例（AI 電源段）為 8%，其他產業請自行確認">
             <Input
               value={state.wacc}
               onChange={(e) => {
@@ -514,7 +568,7 @@ export function FlowConsole({
         <div className="gold-rule my-4" />
 
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-base">
-          <Summary k="產業鏈名稱" v={group.chain} note="用於 L0 第 ④ 項" />
+          <Summary k="產業鏈名稱" v={rg.chain} note={rg.kind === "custom" ? "自訂產業鏈・用於 L0 第 ④ 項" : "用於 L0 第 ④ 項"} />
           <Summary k="子段" v={`${subs.length} 段`} note={subNames(state).join("／") || "—"} />
           <Summary k="掃描檔數" v={String(count)} note="L1／L2 前置用" />
           <Summary
@@ -523,18 +577,20 @@ export function FlowConsole({
               seed
                 ? `${seed.code} ${seed.name}`
                 : offList
-                  ? `${state.ticker} 不在這 74 檔裡`
+                  ? `${state.ticker} 不在目前名單裡`
                   : elsewhere.length
                     ? `${state.ticker} 在別的群組`
                     : "待交集卡決定"
             }
             note={
               seed
-                ? seed.prior === "未定"
-                  ? "段位未定・補充個股待查證"
-                  : `${seed.prior}段先驗`
+                ? seed.own
+                  ? "段位未定・自建個股"
+                  : seed.prior === "未定"
+                    ? "段位未定・補充個股待查證"
+                    : `${seed.prior}段先驗`
                 : elsewhere.length
-                  ? `屬於 ${elsewhere.map((h) => h.short).join("、")}`
+                  ? `在 ${elsewhere.map((h) => (h.group ? `教材群組「${h.group.name}」` : `自訂產業鏈「${h.short}」`)).join("、")}`
                   : "輸入代號可預先指定"
             }
             tone={offList ? "bad" : elsewhere.length ? "warn" : undefined}
@@ -542,13 +598,41 @@ export function FlowConsole({
         </div>
       </Card>
 
+      {/* 自訂產業鏈 */}
+      <Card className="mb-4">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 text-left"
+          onClick={() =>
+            update((d) => {
+              d.open.chains = !(d.open.chains ?? rg.kind === "custom");
+            })
+          }
+        >
+          <h2 className="font-display text-lg text-slate-800">
+            自訂產業鏈
+            <span className="ml-2 text-sm font-normal text-slate-400">
+              把同一套作業流套到任何台股：自己命名、拆子段、手打代號與名稱
+            </span>
+          </h2>
+          <span className="text-slate-400">{(state.open.chains ?? rg.kind === "custom") ? "▾" : "▸"}</span>
+        </button>
+        {(state.open.chains ?? rg.kind === "custom") && (
+          <div className="mt-3">
+            <ChainEditor state={state} update={update} notify={notify} />
+          </div>
+        )}
+      </Card>
+
       {offList && (
         <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-base text-rose-700">
-          <b>「{state.ticker}」不在本表的 74 檔 AI 供應鏈清單裡。</b>
+          <b>「{state.ticker}」不在「{rg.name}」目前的 {count} 檔名單裡。</b>
           <p className="mt-1 leading-relaxed">
-            下面八道指令用的仍然是「{group.name}」這個群組的名單，跟你輸入的代號沒有關係——直接複製會跑錯標的。
+            下面八道指令用的仍然是「{rg.name}」這個群組的名單，跟你輸入的代號沒有關係——直接複製會跑錯標的。
             這套流程是「段」導向的：L0 到交集都在做子段之間的橫向比較，需要一整段的同業清單，不是單一個股。
-            要跑清單外的標的，請在「掃描名單」自行增刪。
+            {rg.kind === "custom"
+              ? "請到下方「自訂產業鏈」把它加進某個子段。"
+              : "要跑清單外的標的，請在掃描名單的子段按「＋ 加個股」，或建立自訂產業鏈。"}
           </p>
         </div>
       )}
@@ -744,6 +828,13 @@ function StationBlock({
                 複製指令
               </button>
             </div>
+            {ctx.chainKind === "custom" && st.aiOnlyNotice && (
+              <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-base text-amber-800">
+                <b>AI 供應鏈專用段落・待講師簽核</b>
+                <span className="ml-2 text-sm text-amber-700">目前產業鏈：{ctx.chain}</span>
+                <p className="mt-1 text-sm leading-relaxed">{st.aiOnlyNotice}</p>
+              </div>
+            )}
             <pre className="max-h-[420px] overflow-auto rounded-lg border border-slate-200 border-l-2 border-l-amber-500 bg-white/40 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
               {prompt}
             </pre>
@@ -762,6 +853,9 @@ function StationBlock({
                   }`}
                 >
                   {n.text}
+                  {ctx.chainKind === "custom" && st.aiOnlyNotes?.includes(i) && (
+                    <span className="ml-1 rounded border border-amber-400 px-1 text-sm text-amber-700">AI 專用</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -832,6 +926,9 @@ function StationBlock({
                       }`}
                     >
                       {c}
+                      {ctx.chainKind === "custom" && st.aiOnlyChecks?.includes(i) && (
+                        <span className="ml-1 rounded border border-amber-400 px-1 text-sm text-amber-700">AI 專用</span>
+                      )}
                     </label>
                   </li>
                 );

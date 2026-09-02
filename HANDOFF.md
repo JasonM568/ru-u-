@@ -75,7 +75,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 ## 路由
 
-- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線）、`/flow/cards`（我的論點卡＋T+20 對帳，2026-09-02 上線）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
+- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線）、`/flow/cards`（我的論點卡＋T+20 對帳，2026-09-02 上線）；`/flow` 自訂產業鏈（階段六，`feat/flow-custom-chain` 待合併）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
 - 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/thesis-cards`（論點卡與 T+20 對帳總覽）、`/admin/process-notes`、`/admin/schedule`
 - 公開：`/login`、`/not-enrolled`
 - 權限閘門：`proxy.ts`（未登入→login）；`lib/auth.ts` 的 `requireEnrollment()`／`requireInstructor()`（頁面層）
@@ -110,6 +110,7 @@ QEC 深藏藍 × 金奢華風。色票在 `app/globals.css` 用 Tailwind `@theme
 - [ ] 確認 course 平台「忘記密碼」正確路徑（登入頁連結假設 `https://course.huangxi.info/forgot-password`，見 `app/login/page.tsx` 的 `COURSE_RESET_URL`）
 - [ ] Supabase 後台把 `https://elite.huangxi.info/**` 加入 Auth → Redirect URLs（**用 Add URL 附加、勿覆蓋**，共用庫）
 - [ ] 使用者跑完整功能/驗收測試，回報 bug → 修 → push → 自動部署
+- [ ] 講師簽核 `docs/flow-prompts-generic-draft.md` 三段通用版指令措辭（簽核後加 chainKind 分支、移除自訂鏈的黃色提示）
 - [ ] 正式開課前完整清理測試資料（清空「學院測試」問卷/團隊紀錄）
 - [ ] 課前：講師在 `/admin/roster` 幫 8 位真實學員分隊、課後依問卷指派職務
 - [ ] **作業流控制台階段一 UAT**：登入 `/flow` 走一遍（Claude 不能輸入密碼，無法代測）。OK 後合 `feat/flow-console` → main

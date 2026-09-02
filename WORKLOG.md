@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-09-02　作業流控制台 — 階段六：自訂產業鏈（選股範圍擴大到任何台股）
+
+> 在 `feat/flow-custom-chain` 分支。**不建新表、不動 RLS、不改任何指令原文字串。** 三段 AI 專用指令的通用版草稿在 `docs/flow-prompts-generic-draft.md`，待顧老師簽核。
+
+**需求**：學員想用同一套「橫掃段 → 交集 → 選標的 → 論點卡 → T+20」看航運、金融、傳產。盤點後：方法論全部通用；綁 AI 的只有三段教材原文（L0 ③ AI capex、L2 前置 ④ AI 營收佔比、論點卡起草反例）；資料層寫死在 `segments.ts` 且控制台**不能新增個股**（那句「請在掃描名單自行增刪」原本只能刪不能增）。
+
+**做法**：`FlowState` 加 `chains`（自訂產業鏈）與 `extraStocks`（教材子段自建個股），`layout()` 多一個分支——它是 roster／subNames／seedStock／stockCount 的唯一來源，所以八道指令、統計、匯出、存檔、下發全部自動跟著走，教材路徑一行不改。
+
+- `lib/flow/chains.ts`（新，純函式）：`CustomChain { id: c_xxxxxx, name, chain, subs[{id,name,stocks[{code,name}]}], l2note?, wacc? }`、`CHAIN_LIMITS`（10 鏈／12 子段／每段 40 檔／每鏈 200 檔）、代號格式 `^\d{4,6}[A-Z]?$`（全形數字自動轉半形）、`sanitizeCustomChain`（跨子段重複代號留第一個）、`groupLabel`（永不回退成電源供應）。
+- `lib/flow/state.ts`：`resolveGroup(state)` 統一「教材群組／自訂鏈」介面；自訂鏈子段鍵用 `x:` 前綴（與教材的 `o:`／`c:` 永不相撞）、origin 用子段 id（改名不掉勾選）；個股 `own: true`、段位一律「未定」、門檻 `null`；`activeSubs` 跳過空子段（修既有落差）；`locateTicker` 也掃自訂鏈與自建個股；`pruneOffKeys`。
+- `lib/flow/config.ts`：`SplitConfig` 升 **v2**（多 `chain`、`extra`），讀 v1／v2、輸出一律 v2；自訂鏈時 `group` 必須等於 `chain.id`；`applySplitConfig` 以同 id 複製進 `draft.chains`（套用講師下發＝覆蓋同 id，toast 明講）。既有 `publishFlowConfig` 不用改，`group_id` 就是鏈 id（已確認 `flow_configs.group_id` 是無 CHECK 的 unique text）。
+- `lib/flow/runs.ts`：`sanitizeState` 先收斂鏈再允許 `groupId` 指向它；`isBlankState` 把只建了鏈的狀態視為非空白；`runTitle` 回鏈名。
+- `lib/flow/prompts.ts` 只加 `PromptContext.chainKind`；`lib/flow/stations.ts` 加 `aiOnlyNotice`／`aiOnlyChecks`／`aiOnlyNotes`（L0、L2P、TC）。
+- 介面：`ChainEditor.tsx`（鏈列表、群組名／產業鏈名稱／WACC／L2 註記、子段與 `StockRowsEditor` 代號名稱列、格式紅框、重複琥珀提示）；`FlowConsole` 下拉分「教材原表（AI 供應鏈）／自訂產業鏈」兩組＋「＋ 新增自訂產業鏈…」，代號自動跳群組**永不跳進或跳出自訂鏈**，自訂鏈在三站顯示琥珀色「AI 供應鏈專用段落・待講師簽核」並在對應檢核／注意事項標「AI 專用」，副標、匯出、警示改中性且用實際檔數；`RosterEditor` 自訂鏈時隱藏自訂分段、自建個股「自建」標籤、教材單一來源子段「＋ 加個股」摺疊、門檻表「自建子段沒有教材門檻」；`PublishedConfigs` 顯示「自訂產業鏈・N 子段・M 檔」；講師端與我的論點卡改 `groupLabel`。
+- 測試：+14 → **70/70**，含回歸快照「教材群組下 L0／L2 指令與改版前逐字相同」；既有 `{v:2}→null` 改用 `v:3`。
+
+**實測（學院測試帳號，dev；在新作業裡做，使用者既有兩檔存檔未動）**：建「航運／航運供應鏈」、貨櫃 2603 長榮＋2609 陽明、散裝 2615 萬海；`260a` 紅框提示 → tile 2 段 3 檔、L0 ④「航運供應鏈」、L1 前置「以下 3 檔」兩行名單、L1 SLT 行「貨櫃 __ 散裝 __」；L0 與 L2 前置出現琥珀提示、兩個「AI 專用」標籤；2603 → 「段位未定・自建個股」；輸入 1519 不跳群組，提示「在 教材群組「電源供應」」；關掉散裝後 SLT 只剩貨櫃；門檻表「自建子段沒有教材門檻」；切回電源供應提示全消失且 L0 仍為 AI 原文；重電「＋ 加個股」2603 → 「自建」標籤、指令名單含它、只用教材原表仍在；同段換標的保留鏈；2.5 秒自動建檔「航運」並存進 `flow_runs`。
+
+**未做**：台股代號查名稱（學員手打）；三段通用版指令（待簽核）。
+
+**驗證**：tsc 通過｜ESLint 0 錯誤（既有 1 警告）｜`npm run test` 5/5＋70/70｜`npm run build` 通過。
+
+---
+
 ## 2026-09-02　作業流控制台 — 階段五：作業存檔（每人 30 檔）
 
 > 使用者提出：學員會做好幾檔標的，希望能在網站存檔切換。評估後決定做，上限每人 30 檔。**2026-09-02 驗收通過，已合併 main 上線。**

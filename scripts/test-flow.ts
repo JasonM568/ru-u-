@@ -11,11 +11,14 @@ import { cardIsEmpty, cardToRow, rowToCard, sanitizeCard, type ThesisCardRow } f
 import { reconcile, reconcileFromStrings, sanitizeChecks } from "../lib/flow/reconcile";
 import { applySplitConfig, buildSplitConfig, sanitizeSplitConfig } from "../lib/flow/config";
 import { MAX_CARD_CHARS, forkForNextTarget, isBlankState, runTitle, sanitizeState } from "../lib/flow/runs";
+import { groupLabel, sanitizeCustomChain, type CustomChain } from "../lib/flow/chains";
 import { SEGMENTS, GROUPS, groupById } from "../lib/flow/segments";
 import * as P from "../lib/flow/prompts";
 import {
   activeSubs,
   blankState,
+  resolveGroup,
+  locateTicker,
   falsifierStatus,
   layout,
   rosterText,
@@ -187,14 +190,15 @@ add("只用教材原表時，補充個股查不到（3483 力致）", () => {
 
 /* ---------- 指令代入 ---------- */
 function ctxOf(s: FlowState): P.PromptContext {
-  const g = GROUPS.find((x) => x.id === s.groupId)!;
+  const rg = resolveGroup(s);
   const seed = seedStock(s);
   return {
-    chain: g.chain,
+    chain: rg.chain,
+    chainKind: rg.kind,
     roster: rosterText(s),
     count: stockCount(s),
     subNames: subNames(s),
-    l2note: g.l2note,
+    l2note: rg.l2note,
     wacc: s.wacc,
     target: seed ? `${seed.code} ${seed.name}` : "（尚未指定標的）",
     cards: s.cards,
@@ -333,7 +337,7 @@ add("sanitizeChecks：非布林一律 null、固定三筆、note 收字串", () 
 add("reconcileFromStrings：UI 字串入口與數字入口一致", () => reconcileFromStrings({ checks: F(false, false, false), executed: null, entryPx: "100", checkPx: " 110 " }).outcome === "thesis_holds");
 
 // ── 階段四：講師下發分段設定（匯出／匯入／下發共用格式） ──
-add("分段設定：未知群組或版本不對 → null", () => sanitizeSplitConfig({ v: 1, group: "nope" }) === null && sanitizeSplitConfig({ v: 2, group: "pwr" }) === null && sanitizeSplitConfig("x") === null);
+add("分段設定：未知群組或版本不對 → null", () => sanitizeSplitConfig({ v: 1, group: "nope" }) === null && sanitizeSplitConfig({ v: 3, group: "pwr" }) === null && sanitizeSplitConfig("x") === null);
 add("分段設定：build → sanitize → apply 來回一致（含自訂子段與 ccMode）", () => {
   const st = blankState();
   st.groupId = "pwr";
@@ -386,6 +390,121 @@ add("存檔：同段換標的保留 L0～交集、清掉 L3 之後與論點卡�
     n.gates.XS === "已填完" && !("L3" in n.gates) && n.tc.code === "" && n.tc.ccMode === "sum" && st.cards.L3 === "e";
 });
 add("存檔：isBlankState 只對真正空白的狀態回 true", () => { const a = blankState(); const b = blankState(); b.cards.L0 = "x"; const c = blankState(); c.ticker = "1519"; return isBlankState(a) && !isBlankState(b) && !isBlankState(c); });
+
+// ── 階段六：自訂產業鏈 ──
+const L0_SNAPSHOT_AI = P.l0(ctxOf(blankState()));
+const L2_SNAPSHOT_AI = P.l2(ctxOf(blankState()));
+function shipping(): CustomChain {
+  return {
+    id: "c_ship01",
+    name: "航運",
+    chain: "航運供應鏈",
+    subs: [
+      { id: "k1", name: "貨櫃", stocks: [{ code: "2603", name: "長榮" }, { code: "2609", name: "陽明" }] },
+      { id: "k2", name: "散裝", stocks: [{ code: "2615", name: "萬海" }] },
+    ],
+    l2note: "註：航運屬強循環。",
+  };
+}
+function withShipping(): FlowState {
+  const st = blankState();
+  st.chains["c_ship01"] = shipping();
+  st.groupId = "c_ship01";
+  return st;
+}
+add("自訂鏈：layout 兩子段、鍵 x: 開頭、門檻 null、無教材來源、每檔未定且自建", () => {
+  const L = layout(withShipping());
+  return L.length === 2 && L.every((s) => s.key.startsWith("x:") && s.thresholds === null && s.origins.length === 0) &&
+    L[0].stocks.every((x) => x.prior === "未定" && x.own) && L[0].stocks[0].origin === "k1";
+});
+add("自訂鏈：roster／subNames／stockCount 從鏈定義來", () => {
+  const st = withShipping();
+  return rosterText(st) === "貨櫃：2603 長榮、2609 陽明\n散裝：2615 萬海" && subNames(st).join("/") === "貨櫃/散裝" && stockCount(st) === 3;
+});
+add("自訂鏈：seedStock 2603 命中；教材群組下 2603 仍 miss", () => {
+  const st = withShipping(); st.ticker = "2603";
+  const ai = blankState(); ai.ticker = "2603";
+  return seedStock(st)?.name === "長榮" && seedStock(st)?.own === true && seedStock(ai) === null;
+});
+add("自訂鏈：L0 帶入「航運供應鏈」、L1 SLT 行「貨櫃 __ 散裝 __」、L2 帶入自填註記與子段", () => {
+  const c = ctxOf(withShipping());
+  return c.chainKind === "custom" && P.l0(c).includes("「航運供應鏈」") && P.l1(c).includes("SLT 分級：貨櫃 __ 散裝 __") &&
+    P.l2(c).includes("註：航運屬強循環。") && P.l2(c).includes("貨櫃／散裝");
+});
+add("自訂鏈：offSubs 與 offStocks 生效；空子段不進指令", () => {
+  const st = withShipping();
+  st.offStocks["x:k1|k1|2609"] = true;
+  st.chains["c_ship01"].subs.push({ id: "k3", name: "空的", stocks: [] });
+  const a = rosterText(st) === "貨櫃：2603 長榮\n散裝：2615 萬海" && !subNames(st).includes("空的");
+  st.offSubs["x:k2"] = true;
+  return a && subNames(st).join("/") === "貨櫃";
+});
+add("locateTicker：自訂鏈找得到 2603（有 chain 無 group）；教材 1519 仍回 pwr", () => {
+  const st = withShipping();
+  const h = locateTicker(st, "2603");
+  const g = locateTicker(st, "1519");
+  return h.length === 1 && !!h[0].chain && !h[0].group && g.some((x) => x.group?.id === "pwr");
+});
+add("sanitizeCustomChain 邊界：id／名稱／代號格式／截斷／跨子段重複", () => {
+  const bad1 = sanitizeCustomChain({ ...shipping(), id: "pwr" }) === null;
+  const bad2 = sanitizeCustomChain({ ...shipping(), name: " " }) === null;
+  const c = sanitizeCustomChain({
+    id: "c_ship01", name: "航運", chain: "  ",
+    subs: [
+      { id: "k1", name: "貨櫃", stocks: [{ code: "260a", name: "x" }, { code: "26031234", name: "x" }, { code: " 2603 ", name: "長榮" }, { code: "００６３１l", name: "反一" }, { code: "2603", name: "重複" }] },
+      { id: "k2", name: "散裝", stocks: [{ code: "2603", name: "跨子段重複" }, { code: "2615", name: "萬海" }] },
+      { id: "k2", name: "同 id", stocks: [] },
+      { id: "k4", name: "", stocks: [] },
+    ],
+  });
+  const many = sanitizeCustomChain({ id: "c_many01", name: "多", subs: Array.from({ length: 20 }, (_, i) => ({ id: `s${i}`, name: `s${i}`, stocks: Array.from({ length: 60 }, (_, j) => ({ code: String(1000 + i * 60 + j), name: "" })) })) });
+  return bad1 && bad2 && !!c && c.chain === "航運" && c.subs.length === 2 &&
+    c.subs[0].stocks.map((s) => s.code).join(",") === "2603,00631L" && c.subs[1].stocks.map((s) => s.code).join(",") === "2615" &&
+    !!many && many.subs.length === 12 && many.subs[0].stocks.length === 40 && many.subs.reduce((n, s) => n + s.stocks.length, 0) === 200;
+});
+add("SplitConfig v2：自訂鏈 build → sanitize → apply 來回一致，wacc 帶入", () => {
+  const st = withShipping(); st.chains["c_ship01"].wacc = "9";
+  const cfg = sanitizeSplitConfig(JSON.parse(JSON.stringify(buildSplitConfig(st))));
+  if (!cfg || cfg.v !== 2 || !cfg.chain || cfg.custom !== null) return false;
+  const fresh = blankState(); applySplitConfig(fresh, cfg);
+  return fresh.groupId === "c_ship01" && fresh.chains["c_ship01"]?.subs[0].stocks[1].name === "陽明" && fresh.wacc === "9" && !("c_ship01" in fresh.custom);
+});
+add("SplitConfig v1 相容：舊格式仍可讀且輸出 v2；自訂鏈缺 chain → null；教材群組帶 chain 被忽略", () => {
+  const v1 = sanitizeSplitConfig({ v: 1, group: "pwr", custom: { subs: [{ id: "a", name: "A" }], assign: {} } });
+  const noChain = sanitizeSplitConfig({ v: 2, group: "c_ship01" });
+  const ignored = sanitizeSplitConfig({ v: 2, group: "pwr", chain: shipping() });
+  return !!v1 && v1.v === 2 && v1.custom?.subs[0].id === "a" && noChain === null && !!ignored && !ignored.chain;
+});
+add("sanitizeState：保留合法鏈並允許 groupId 指向它；超過 10 條截斷；指向不存在的 c_ 回 pwr；custom[c_] 丟掉", () => {
+  const st = withShipping(); st.custom["c_ship01"] = { subs: [{ id: "z", name: "z" }], assign: {} };
+  const out = sanitizeState(JSON.parse(JSON.stringify(st)));
+  const many = { ...blankState(), chains: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`c_m${String(i).padStart(4, "0")}`, { ...shipping(), id: `c_m${String(i).padStart(4, "0")}` }])) };
+  const lost = sanitizeState({ ...blankState(), groupId: "c_nope" });
+  return out.groupId === "c_ship01" && !!out.chains["c_ship01"] && !("c_ship01" in out.custom) &&
+    Object.keys(sanitizeState(many).chains).length === 10 && lost.groupId === "pwr";
+});
+add("isBlankState：只建了鏈不算空白；forkForNextTarget 保留鏈與 groupId；runTitle 回鏈名", () => {
+  const st = withShipping();
+  const f = forkForNextTarget(st);
+  return !isBlankState(st) && f.groupId === "c_ship01" && !!f.chains["c_ship01"] && runTitle(st) === "航運";
+});
+add("groupLabel：教材→名稱、c_ 已知→鏈名、c_ 未知→自訂產業鏈、其他→null", () =>
+  groupLabel("pwr") === "電源供應" && groupLabel("c_ship01", { c_ship01: shipping() }) === "航運" && groupLabel("c_zzz") === "自訂產業鏈" && groupLabel("nope") === null,
+);
+add("教材群組加個股：extraStocks 進 roster、own、不被 originalOnly 隱藏、v2 config 來回保留", () => {
+  const st = blankState(); st.groupId = "pwr"; st.originalOnly = true;
+  st.extraStocks.pwr = { 重電: [{ code: "2603", name: "長榮" }] };
+  const roster = rosterText(st);
+  const seed = { ...st, ticker: "2603" };
+  const cfg = sanitizeSplitConfig(JSON.parse(JSON.stringify(buildSplitConfig(st))));
+  const fresh = blankState(); if (cfg) applySplitConfig(fresh, cfg);
+  return roster.includes("重電：1519 華城、1503 士電、1514 亞力、2603 長榮") && seedStock(seed)?.own === true &&
+    !!cfg?.extra?.重電 && fresh.extraStocks.pwr?.重電?.[0].code === "2603" && stockCount(st) === 14;
+});
+add("回歸：教材群組下 L0／L2 指令與改版前逐字相同（AI 鏈不受影響）", () => {
+  const c = ctxOf(blankState());
+  return c.chainKind === "ai" && P.l0(c) === L0_SNAPSHOT_AI && P.l2(c) === L2_SNAPSHOT_AI && P.l0(c).includes("AI 資本支出週期");
+});
 
 for (const c of cases) {
   let ok = false;
