@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-09-02　作業流控制台 — 階段五：作業存檔（每人 30 檔）
+
+> 在 `feat/flow-runs` 分支。使用者提出：學員會做好幾檔標的，希望能在網站存檔切換。評估後決定做，上限每人 30 檔。
+
+**資料表 `elite.flow_runs`**（migration `elite_flow_runs`）：一次作業一個存檔，整份控制台狀態存 `state` jsonb。RLS：本人讀寫刪、講師只能看。**上限 30 檔由 trigger `elite.flow_runs_cap()` 保底**（server action 也先數），第 31 檔會被擋並回「作業存檔已達上限 30 檔」。另在 `elite.thesis_cards` 加 `run_id`（存檔刪掉時卡保留、run_id 變 null）。
+
+**RLS ＋ 上限實測（11 項全過）**：本人 select 1、卡回連存檔 1；他人 select 0、update 0；講師 select 1、update 0、delete 0；塞到 30 檔後第 31 檔被擋（23514）；刪存檔後卡保留且 run_id 為 null。
+
+**純函式 `lib/flow/runs.ts`**：`sanitizeState`（每張交棒卡上限 `MAX_CARD_CHARS` 1 萬字，分段設定與論點卡走既有的收斂規則，非法欄位丟掉）、`runTitle`（自動標題「1519 華城」）、`forkForNextTarget`（**同段換標的**：L0～交集是段層級留著，L3、L4、論點卡與其檢核閘門清掉——對應「每隊交出 2 檔論點卡」，第二檔不用重跑前四層）、`isBlankState`。5 項測試 → 全套 56/56。
+
+**程式**
+- `app/(app)/flow/actions.ts`：`loadRun`／`saveRun`（有 id 更新、沒 id 新建並先數上限）／`deleteRun`／`listRuns`；`saveThesisCard` 多收 `runId`。
+- `app/(app)/flow/RunBar.tsx`：控制台頂端的存檔列——下拉切換、＋新作業、同段換標的、重新命名、刪除、儲存狀態（有未存變更／儲存中／已存雲端 時間）、N／30 檔。
+- `FlowConsole.tsx`：**localStorage 降為本機快取，雲端是正本**。改動後 2.5 秒 debounce 自動存；進頁時若本機記得目前存檔就從雲端重載（別台裝置可能改過），沒有就開最近一檔，都沒有但本機有舊資料就自動轉成第一個存檔（學員不會發現搬家）。切換／新建前先 flush 未存變更。ref 同步放在 effect 而非 render（`react-hooks/refs`），`doSave` 的重跑透過 ref 避免自我引用（`react-hooks/immutability`）。
+- 講師端 `/admin/thesis-cards`：論點卡若回連存檔，多一個摺疊區「作業存檔「…」的六張交棒卡」，講師看得到學員怎麼推到那張卡。
+
+**實測（學院測試帳號，dev）**：輸入 1519 並貼 L0 卡 → 2.5 秒後自動建檔「1519 華城」1／30；同段換標的 → 代號清空、L0 卡保留，輸入 2308 後自動建第二檔；下拉切回第一檔 → 1519 與 L0 卡回來；重新命名「測試A 華城」→ 資料庫同步；清掉本機快取重新整理 → 從雲端載回；存論點卡 → `run_id` 指向該存檔；刪第二檔 → 剩 1 檔。每份存檔約 1 KB。測試資料已清。
+
+**驗證**：tsc 通過｜ESLint 0 錯誤（既有 1 警告）｜`npm run test` 5/5＋56/56｜`npm run build` 通過。
+
+---
+
 ## 2026-09-02　作業流控制台 — 階段四：分段設定由講師下發
 
 > 四階段全部完成。**2026-09-02 使用者驗收通過，階段二～四已合併 main 上線。**

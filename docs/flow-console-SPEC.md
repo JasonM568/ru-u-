@@ -71,8 +71,10 @@ npm run test
 | `lib/flow/reconcile.ts` | T+20 四象限判定純函式（server 端重算） |
 | `lib/flow/config.ts` | 分段設定格式：匯出／匯入／講師下發共用（build／sanitize／apply） |
 | `app/(app)/flow/PublishedConfigs.tsx` | 講師下發面板：全班套用、講師下發／撤回 |
+| `lib/flow/runs.ts` | 作業存檔：狀態收斂（有界）、自動標題、同段換標的、上限常數 |
+| `app/(app)/flow/RunBar.tsx` | 存檔列：切換、新建、同段換標的、重新命名、刪除、儲存狀態 |
 | `app/(app)/admin/thesis-cards/page.tsx` | 講師端：全班論點卡與對帳總覽（唯讀） |
-| `scripts/test-flow.ts` | 51 項純邏輯測試 |
+| `scripts/test-flow.ts` | 56 項純邏輯測試 |
 
 ---
 
@@ -133,7 +135,7 @@ npm run test
 
 ## 目前狀態與後續三階段
 
-**階段一（已完成，未合併）**：控制台移植進站，資料存 localStorage（key = `flow5:{userId}`，帶 user_id 所以同一台電腦多人登入不會互蓋）。
+**階段一（已上線）**：控制台移植進站。原本資料只存 localStorage（key = `flow5:{userId}`）；階段五起 localStorage 只是快取，正本在 `elite.flow_runs`。
 
 **階段二　論點卡上雲**（2026-09-02 完成並上線，見 WORKLOG）
 - 新表 `elite.thesis_cards`（MCP `apply_migration`，name `elite_thesis_cards`）
@@ -147,6 +149,12 @@ npm run test
 - `app/(app)/admin/thesis-cards/page.tsx`：比照 `admin/teams/page.tsx`，平行 select ＋ JS 端 Map join 出 display_name
 
 **階段四　分段設定由講師下發**（2026-09-02 完成並上線，見 WORKLOG）
+
+**階段五　作業存檔**（2026-09-02 完成，分支 `feat/flow-runs`，見 WORKLOG）
+- 新表 `elite.flow_runs`：一次作業一個存檔，整份狀態 jsonb，每人上限 30 檔（trigger 保底），每張交棒卡上限 1 萬字
+- localStorage 降為快取，雲端為正本；改動後 2.5 秒自動存
+- 「同段換標的」：保留 L0～交集，清掉 L3 之後
+- `elite.thesis_cards.run_id` 回連存檔；講師端可展開該存檔的六張交棒卡
 - 新表 `elite.flow_configs`，講師寫、名冊內學員讀
 - 目前的替代做法：控制台已有「匯出／匯入分段設定」（一串 JSON，約 700 字），零後端也能讓全班統一
 

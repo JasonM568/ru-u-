@@ -44,10 +44,12 @@ export function ThesisCardForm({
   state,
   update,
   notify,
+  runId = null,
 }: {
   state: FlowState;
   update: (fn: (draft: FlowState) => void) => void;
   notify: (msg: string) => void;
+  runId?: string | null;
 }) {
   const tc = state.tc;
   const c = cccOf(tc);
@@ -67,6 +69,7 @@ export function ThesisCardForm({
         card: JSON.stringify(tc),
         groupId: state.groupId,
         asOf: state.asOf,
+        runId,
       });
       if (!res.ok) {
         notify(`存雲端失敗：${res.error}`);

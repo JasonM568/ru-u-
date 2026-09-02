@@ -10,7 +10,8 @@ import { computeCcc, toNum } from "../lib/flow/ccc";
 import { cardIsEmpty, cardToRow, rowToCard, sanitizeCard, type ThesisCardRow } from "../lib/flow/cloud";
 import { reconcile, reconcileFromStrings, sanitizeChecks } from "../lib/flow/reconcile";
 import { applySplitConfig, buildSplitConfig, sanitizeSplitConfig } from "../lib/flow/config";
-import { SEGMENTS, GROUPS } from "../lib/flow/segments";
+import { MAX_CARD_CHARS, forkForNextTarget, isBlankState, runTitle, sanitizeState } from "../lib/flow/runs";
+import { SEGMENTS, GROUPS, groupById } from "../lib/flow/segments";
 import * as P from "../lib/flow/prompts";
 import {
   activeSubs,
@@ -358,6 +359,33 @@ add("分段設定：assign 指向不存在的子段會被丟掉、offSubs 只收
   return !!cfg && cfg.custom?.assign.k1 === "a" && !("k2" in (cfg.custom?.assign ?? {})) && cfg.offSubs.x === true && !("y" in cfg.offSubs) && !("z" in cfg.offSubs);
 });
 add("分段設定：沒有 ccMode 的舊格式套用時不動 ccMode", () => { const fresh = blankState(); fresh.tc.ccMode = "sum"; const cfg = sanitizeSplitConfig({ v: 1, group: "pwr" }); if (!cfg) return false; applySplitConfig(fresh, cfg); return fresh.tc.ccMode === "sum" && fresh.custom.pwr === undefined; });
+
+// ── 階段五：作業存檔 ──
+add("存檔：sanitizeState 交棒卡截到上限、未知群組回預設、多餘欄位丟掉", () => {
+  const st = sanitizeState({ ticker: " 1519 ", groupId: "nope", cards: { L0: "x".repeat(MAX_CARD_CHARS + 50), L9: "ghost" }, checks: { "L0#0": true, "L0#1": "yes" }, evil: 1 });
+  return st.ticker === "1519" && st.groupId === "pwr" && st.cards.L0.length === MAX_CARD_CHARS && !("L9" in st.cards) && st.checks["L0#0"] === true && !("L0#1" in st.checks) && !("evil" in st);
+});
+add("存檔：sanitizeState 保留合法的自訂分段與論點卡", () => {
+  const src = blankState(); src.groupId = "pwr"; src.custom.pwr = seedCustomSplit(src); src.tc.code = "1519"; src.tc.name = "華城";
+  const st = sanitizeState(JSON.parse(JSON.stringify(src)));
+  return !!st.custom.pwr && st.custom.pwr.subs.length === 4 && st.tc.code === "1519" && st.tc.name === "華城";
+});
+add("存檔：runTitle 依序用 代號名稱／論點卡／群組名", () => {
+  const a = blankState(); a.ticker = "1519"; a.groupId = "pwr";
+  const b = blankState(); b.tc.code = "2330"; b.tc.name = "台積電";
+  const c = blankState();
+  return runTitle(a) === "1519 華城" && runTitle(b) === "2330 台積電" && runTitle(c) === groupById("pwr").name;
+});
+add("存檔：同段換標的保留 L0～交集、清掉 L3 之後與論點卡、保留 ccMode", () => {
+  const st = blankState(); st.ticker = "1519"; st.cards = { L0: "a", L1: "b", L2: "c", XS: "d", L3: "e", L4: "f" };
+  st.checks = { "L0#0": true, "L3#0": true, "TC#2": true }; st.gates = { XS: "已填完", L3: "未超過", L4: "未超過" };
+  st.tc.code = "1519"; st.tc.ccMode = "sum";
+  const n = forkForNextTarget(st);
+  return n.ticker === "" && n.cards.L0 === "a" && n.cards.XS === "d" && n.cards.L3 === "" && n.cards.L4 === "" &&
+    n.checks["L0#0"] === true && !("L3#0" in n.checks) && !("TC#2" in n.checks) &&
+    n.gates.XS === "已填完" && !("L3" in n.gates) && n.tc.code === "" && n.tc.ccMode === "sum" && st.cards.L3 === "e";
+});
+add("存檔：isBlankState 只對真正空白的狀態回 true", () => { const a = blankState(); const b = blankState(); b.cards.L0 = "x"; const c = blankState(); c.ticker = "1519"; return isBlankState(a) && !isBlankState(b) && !isBlankState(c); });
 
 for (const c of cases) {
   let ok = false;
