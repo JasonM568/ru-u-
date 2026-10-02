@@ -38,6 +38,12 @@ export type Station = {
   notes: Note[];
   checks: string[];
   gate?: Gate;
+  /** 自訂產業鏈時顯示的琥珀色提示：這一站有 AI 供應鏈專用的教材原文，通用措辭待講師簽核（字串不改） */
+  aiOnlyNotice?: string;
+  /** checks 裡屬 AI 專用的索引（自訂鏈時標「AI 專用」，仍可勾） */
+  aiOnlyChecks?: number[];
+  /** notes 裡屬 AI 專用的索引 */
+  aiOnlyNotes?: number[];
 };
 
 export const STATIONS: Station[] = [
@@ -69,6 +75,9 @@ export const STATIONS: Station[] = [
   },
   {
     id: "L0",
+    aiOnlyNotice:
+      "指令第 ③ 項（AI 資本支出週期／CSP 資本支出指引／電力供給限制）與交棒卡「AI capex 週期」一行是 AI 供應鏈專用的教材原文，通用版措辭待講師簽核。簽核前請自行把第 ③ 項換成本產業的需求或資本支出週期判斷，交棒卡那一行照填你的產業週期。",
+    aiOnlyChecks: [2],
     no: "指令 1",
     title: "L0 環境判讀",
     tool: "MacroScope",
@@ -145,6 +154,9 @@ export const STATIONS: Station[] = [
   },
   {
     id: "L2P",
+    aiOnlyNotice:
+      "第 ④ 欄「AI 相關營收佔比」與 5(b) 的工程業範例是 AI 供應鏈專用的教材原文，通用版措辭待講師簽核。自訂產業鏈請把第 ④ 欄換成本產業鏈的關鍵曝險指標（例如運價連動營收佔比），查不到就照填「未揭露」。",
+    aiOnlyNotes: [1],
     no: "指令 4",
     title: "L2 前置：財報蒐集",
     tool: "一般 AI（需上網）",
@@ -335,6 +347,8 @@ export const STATIONS: Station[] = [
   },
   {
     id: "TC",
+    aiOnlyNotice:
+      "「一、核心論點」的反例（AI 需求強勁…）是 AI 供應鏈專用的教材原文，通用版措辭待講師簽核。自訂產業鏈請類推：凡是沒說出瓶頸在哪的寫法都不接受。",
     no: "交付物",
     title: "投資論點卡",
     tool: "自己寫（可先讓 AI 起草前六欄）",

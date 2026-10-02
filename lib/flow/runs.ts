@@ -8,11 +8,12 @@
  * - isBlankState：判斷 localStorage 舊資料值不值得轉成第一個存檔
  */
 
+import { CHAIN_LIMITS, sanitizeCustomChain, type CustomChainStock } from "./chains";
 import { sanitizeCard } from "./cloud";
-import { sanitizeSplitConfig } from "./config";
+import { sanitizeExtra, sanitizeSplitConfig } from "./config";
 import type { CardId } from "./prompts";
-import { GROUPS, groupById } from "./segments";
-import { blankState, blankThesisCard, seedStock, type FlowState } from "./state";
+import { GROUPS } from "./segments";
+import { blankState, blankThesisCard, resolveGroup, seedStock, type FlowState } from "./state";
 
 /** 每人存檔上限（資料庫 trigger 也擋同一個數字） */
 export const MAX_RUNS = 30;
@@ -50,8 +51,31 @@ export function sanitizeState(input: unknown): FlowState {
   if (!input || typeof input !== "object") return base;
   const o = input as Record<string, unknown>;
 
+  // 自訂產業鏈先收斂，groupId 才能指向它
+  const chains: FlowState["chains"] = {};
+  if (o.chains && typeof o.chains === "object" && !Array.isArray(o.chains)) {
+    for (const [id, c] of Object.entries(o.chains as Record<string, unknown>)) {
+      if (Object.keys(chains).length >= CHAIN_LIMITS.chainsPerState) break;
+      const cc = sanitizeCustomChain(c);
+      if (cc && cc.id === id) chains[id] = cc;
+    }
+  }
+
   const groupId =
-    typeof o.groupId === "string" && GROUPS.some((g) => g.id === o.groupId) ? o.groupId : base.groupId;
+    typeof o.groupId === "string" && (GROUPS.some((g) => g.id === o.groupId) || o.groupId in chains)
+      ? o.groupId
+      : base.groupId;
+
+  // 教材群組子段的自建個股：只收教材群組與其教材分類
+  const extraStocks: FlowState["extraStocks"] = {};
+  if (o.extraStocks && typeof o.extraStocks === "object" && !Array.isArray(o.extraStocks)) {
+    for (const [gid, v] of Object.entries(o.extraStocks as Record<string, unknown>)) {
+      const g = GROUPS.find((x) => x.id === gid);
+      if (!g) continue;
+      const ex: Record<string, CustomChainStock[]> | null = sanitizeExtra(v, g.subs);
+      if (ex) extraStocks[gid] = ex;
+    }
+  }
 
   // 自訂分段：每個群組各自走 sanitizeSplitConfig 的 custom 規則
   const custom: FlowState["custom"] = {};
@@ -83,6 +107,8 @@ export function sanitizeState(input: unknown): FlowState {
     gates: strMap(o.gates),
     open: boolMap(o.open),
     tc: sanitizeCard(o.tc),
+    chains,
+    extraStocks,
   };
 }
 
@@ -92,7 +118,7 @@ export function runTitle(state: FlowState): string {
   if (s) return `${s.code} ${s.name}`;
   if (state.tc.code || state.tc.name) return `${state.tc.code} ${state.tc.name}`.trim();
   if (state.ticker) return state.ticker;
-  return groupById(state.groupId).name;
+  return resolveGroup(state).name;
 }
 
 /**
@@ -119,7 +145,10 @@ export function forkForNextTarget(state: FlowState): FlowState {
 export function isBlankState(state: FlowState): boolean {
   const anyCard = CARD_IDS.some((id) => (state.cards[id] ?? "").trim());
   const anyTc = !!(state.tc.code || state.tc.name || state.tc.thesis);
-  const anyCustom = Object.keys(state.custom).length > 0;
+  const anyCustom =
+    Object.keys(state.custom).length > 0 ||
+    Object.keys(state.chains ?? {}).length > 0 ||
+    Object.keys(state.extraStocks ?? {}).length > 0;
   return !state.ticker && !anyCard && !anyTc && !anyCustom;
 }
 

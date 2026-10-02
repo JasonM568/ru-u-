@@ -4,6 +4,7 @@
  */
 
 import { GROUPS, SEGMENTS, groupById, type Group, type Prior, type Stock } from "./segments";
+import { isCustomChainId, type CustomChain, type CustomChainStock } from "./chains";
 import type { CardId } from "./prompts";
 import type { CcMode } from "./ccc";
 
@@ -64,6 +65,10 @@ export type FlowState = {
   gates: Record<string, string>;
   open: Record<string, boolean>;
   tc: ThesisCard;
+  /** 自訂產業鏈（階段六），key = chain.id（c_ 開頭） */
+  chains: Record<string, CustomChain>;
+  /** 教材群組子段裡學員自建的個股：groupId → 教材分類名 → 個股 */
+  extraStocks: Record<string, Record<string, CustomChainStock[]>>;
 };
 
 const blankEvidence = (): Evidence => ({ t: "", src: "", per: "" });
@@ -118,6 +123,8 @@ export function blankState(): FlowState {
     gates: {},
     open: {},
     tc: blankThesisCard(),
+    chains: {},
+    extraStocks: {},
   };
 }
 
@@ -127,7 +134,9 @@ export type LaidOutStock = {
   name: string;
   prior: Prior;
   added: boolean;
-  /** 原本屬於哪個教材分類 */
+  /** 學員自建（自訂產業鏈或教材子段「＋ 加個股」）：段位未定、需自行查證 */
+  own: boolean;
+  /** 原本屬於哪個教材分類；自訂鏈個股則是子段 id */
   origin: string;
 };
 
@@ -149,18 +158,64 @@ export type LaidOutSub = {
 const visible = (state: FlowState, s: Stock) => !(state.originalOnly && s.added);
 
 function toLaidOut(s: Stock, origin: string): LaidOutStock {
-  return { code: s.code, name: s.name, prior: s.prior, added: !!s.added, origin };
+  return { code: s.code, name: s.name, prior: s.prior, added: !!s.added, own: false, origin };
 }
 
-/** 目前群組的分段結構：沒有自訂就用教材原分段。 */
+function toOwn(s: CustomChainStock, origin: string): LaidOutStock {
+  return { code: s.code, name: s.name, prior: "未定", added: false, own: true, origin };
+}
+
+/** 目前群組是教材群組還是自訂產業鏈，統一成同一個介面給畫面與指令用。 */
+export type ResolvedGroup = {
+  kind: "ai" | "custom";
+  id: string;
+  name: string;
+  /** L0 第 ④ 項的產業鏈名稱 */
+  chain: string;
+  /** L2 指令的產業註記 */
+  l2note: string;
+  group?: Group;
+  custom?: CustomChain;
+};
+
+export function resolveGroup(state: Pick<FlowState, "groupId" | "chains">): ResolvedGroup {
+  const c = state.chains?.[state.groupId];
+  if (c && isCustomChainId(state.groupId)) {
+    return { kind: "custom", id: c.id, name: c.name, chain: c.chain || c.name, l2note: c.l2note ?? "", custom: c };
+  }
+  const g = groupById(state.groupId);
+  return { kind: "ai", id: g.id, name: g.name, chain: g.chain, l2note: g.l2note, group: g };
+}
+
+/** 教材分類的個股 ＋ 學員在該分類自建的個股。 */
+function segmentStocks(state: FlowState, groupId: string, key: string): LaidOutStock[] {
+  const base = SEGMENTS[key].stocks.filter((s) => visible(state, s)).map((s) => toLaidOut(s, key));
+  const extra = (state.extraStocks?.[groupId]?.[key] ?? []).map((s) => toOwn(s, key));
+  return [...base, ...extra];
+}
+
+/** 目前群組的分段結構：自訂產業鏈直接用它的子段；教材群組沒有自訂分段就用原分段。 */
 export function layout(state: FlowState): LaidOutSub[] {
-  const group = groupById(state.groupId);
+  const rg = resolveGroup(state);
+  if (rg.kind === "custom") {
+    // 鍵用 x: 前綴，和教材群組的 o:／c: 永不相撞；origin 用子段 id，改名不會掉勾選
+    return rg.custom!.subs.map((cs) => ({
+      key: `x:${cs.id}`,
+      id: cs.id,
+      name: cs.name,
+      stocks: cs.stocks.map((s) => toOwn(s, cs.id)),
+      origins: [],
+      thresholds: null,
+    }));
+  }
+
+  const group = rg.group!;
   const custom = state.custom[group.id];
 
   if (!custom) {
     return group.subs.map((key) => {
       const seg = SEGMENTS[key];
-      const stocks = seg.stocks.filter((s) => visible(state, s)).map((s) => toLaidOut(s, key));
+      const stocks = segmentStocks(state, group.id, key);
       return {
         key: `o:${key}`,
         name: seg.short,
@@ -183,12 +238,11 @@ export function layout(state: FlowState): LaidOutSub[] {
   const unassigned: LaidOutStock[] = [];
 
   for (const key of group.subs) {
-    for (const s of SEGMENTS[key].stocks) {
-      if (!visible(state, s)) continue;
+    for (const s of segmentStocks(state, group.id, key)) {
       const target = custom.assign[`${key}|${s.code}`];
       const bucket = target ? byId.get(target) : undefined;
-      if (bucket) bucket.stocks.push(toLaidOut(s, key));
-      else unassigned.push(toLaidOut(s, key));
+      if (bucket) bucket.stocks.push(s);
+      else unassigned.push(s);
     }
   }
 
@@ -214,8 +268,9 @@ export function layout(state: FlowState): LaidOutSub[] {
 export const stockKey = (sub: LaidOutSub, s: LaidOutStock) =>
   `${sub.key}|${s.origin}|${s.code}`;
 
+/** 有被勾選、不是「未分配」、也不是空的子段，才進指令。 */
 export const activeSubs = (state: FlowState): LaidOutSub[] =>
-  layout(state).filter((l) => !state.offSubs[l.key] && !l.unassigned);
+  layout(state).filter((l) => !state.offSubs[l.key] && !l.unassigned && l.stocks.length > 0);
 
 export const activeStocks = (state: FlowState, sub: LaidOutSub): LaidOutStock[] =>
   sub.stocks.filter((s) => !state.offStocks[stockKey(sub, s)]);
@@ -224,7 +279,7 @@ export function rosterText(state: FlowState): string {
   return activeSubs(state)
     .map((sub) => {
       const list = activeStocks(state, sub)
-        .map((s) => `${s.code} ${s.name}`)
+        .map((s) => [s.code, s.name].filter(Boolean).join(" "))
         .join("、");
       return `${sub.name}：${list || "（本子段已全部取消勾選）"}`;
     })
@@ -239,10 +294,10 @@ export const subNames = (state: FlowState): string[] =>
 
 /** 目前群組裡 Claude 補充個股的總數（0 就不顯示出處說明）。 */
 export const addedCount = (state: FlowState): number =>
-  groupById(state.groupId).subs.reduce(
+  resolveGroup(state).group?.subs.reduce(
     (n, key) => n + SEGMENTS[key].stocks.filter((s) => s.added).length,
     0,
-  );
+  ) ?? 0;
 
 /** 依代號找出目前群組裡的 L3 候選標的。 */
 export function seedStock(state: FlowState): LaidOutStock | null {
@@ -254,12 +309,12 @@ export function seedStock(state: FlowState): LaidOutStock | null {
   return null;
 }
 
-/** 代號在別的群組時，回報它在哪幾段。 */
-export function locateTicker(
-  state: FlowState,
-  code: string,
-): { segment: string; short: string; group?: Group }[] {
-  const out: { segment: string; short: string; group?: Group }[] = [];
+export type TickerHit = { segment: string; short: string; group?: Group; chain?: CustomChain };
+
+/** 代號在別的群組（教材或自訂鏈）時，回報它在哪幾段。 */
+export function locateTicker(state: FlowState, code: string): TickerHit[] {
+  const out: TickerHit[] = [];
+  if (!code) return out;
   for (const seg of Object.values(SEGMENTS)) {
     const hit = seg.stocks.find((s) => s.code === code && visible(state, s));
     if (hit) {
@@ -270,20 +325,41 @@ export function locateTicker(
       });
     }
   }
+  for (const [gid, extra] of Object.entries(state.extraStocks ?? {})) {
+    const group = GROUPS.find((g) => g.id === gid);
+    if (!group) continue;
+    for (const [key, list] of Object.entries(extra)) {
+      if (list.some((s) => s.code === code)) out.push({ segment: key, short: SEGMENTS[key]?.short ?? key, group });
+    }
+  }
+  for (const chain of Object.values(state.chains ?? {})) {
+    for (const cs of chain.subs) {
+      if (cs.stocks.some((s) => s.code === code)) out.push({ segment: cs.name, short: `${chain.name}／${cs.name}`, chain });
+    }
+  }
   return out;
+}
+
+/** 刪掉自訂鏈或它的子段時，把 offSubs／offStocks 裡 x:<subId> 開頭的鍵一起清掉。 */
+export function pruneOffKeys(draft: FlowState, subIds: string[]): void {
+  const prefixes = subIds.map((id) => `x:${id}`);
+  for (const k of Object.keys(draft.offSubs)) if (prefixes.some((p) => k === p)) delete draft.offSubs[k];
+  for (const k of Object.keys(draft.offStocks)) if (prefixes.some((p) => k.startsWith(`${p}|`))) delete draft.offStocks[k];
 }
 
 export const newSubId = () => `s${Math.random().toString(36).slice(2, 7)}`;
 
 /** 把教材原分段複製成自訂分段的起點。 */
 export function seedCustomSplit(state: FlowState): CustomSplit {
-  const group = groupById(state.groupId);
+  const group = resolveGroup(state).group;
   const subs: CustomSplit["subs"] = [];
   const assign: CustomSplit["assign"] = {};
+  if (!group) return { subs, assign };
   for (const key of group.subs) {
     const id = newSubId();
     subs.push({ id, name: SEGMENTS[key].short });
     for (const s of SEGMENTS[key].stocks) assign[`${key}|${s.code}`] = id;
+    for (const s of state.extraStocks?.[group.id]?.[key] ?? []) assign[`${key}|${s.code}`] = id;
   }
   return { subs, assign };
 }

@@ -6,7 +6,7 @@ import { rowToCard, type ReconciliationRow, type ThesisCardRow } from "@/lib/flo
 import { OUTCOME_LABEL, OUTCOME_TONE } from "@/lib/flow/reconcile";
 import { ReconcileForm } from "./ReconcileForm";
 import { thesisText } from "@/lib/flow/thesis";
-import { groupById } from "@/lib/flow/segments";
+import { groupLabel } from "@/lib/flow/chains";
 import { CardActions } from "./CardActions";
 
 export const metadata = {
@@ -78,7 +78,7 @@ export default async function MyThesisCardsPage({
         <div className="space-y-4">
           {rows.map((row) => {
             const tc = rowToCard(row);
-            const group = row.group_id ? groupById(row.group_id) : null;
+            const groupName = groupLabel(row.group_id);
             const r = reconOf.get(row.id) ?? null;
             return (
               <Card key={row.id}>
@@ -89,7 +89,7 @@ export default async function MyThesisCardsPage({
                       {tc.code || "____"} {tc.name || "（未填名稱）"}
                     </h2>
                     <p className="mt-1 text-sm text-slate-400">
-                      {[group?.name, tc.sub, tc.cls].filter(Boolean).join("　·　") || "尚未填子段與分類"}
+                      {[groupName, tc.sub, tc.cls].filter(Boolean).join("　·　") || "尚未填子段與分類"}
                       {tc.date && `　·　填寫日期 ${tc.date}`}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">最後更新 {fmt(row.updated_at)}</p>

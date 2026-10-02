@@ -22,6 +22,8 @@ export const CARD_LABEL: Record<CardId, string> = {
 export type PromptContext = {
   /** L0 第 ④ 項的產業鏈名稱 */
   chain: string;
+  /** "ai" = 教材群組（指令原文照用）；"custom" = 自訂產業鏈（介面在 AI 專用段落加提示，字串不變） */
+  chainKind: "ai" | "custom";
   /** 已格式化的個股清單，每行「子段：代號 名稱、代號 名稱」 */
   roster: string;
   /** 掃描檔數 */
