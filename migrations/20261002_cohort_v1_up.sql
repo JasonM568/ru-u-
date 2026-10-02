@@ -37,8 +37,8 @@ begin
   if (select count(*) from elite_cohort_v1_backup.flow_unique) <> 1 then
     raise exception 'Expected one flow_configs(group_id) unique constraint';
   end if;
-  if (select count(*) from elite.course_videos) <> 4 then
-    raise exception 'Expected four existing videos; inspect live data first';
+  if (select count(*) from elite.course_videos) <> 10 then
+    raise exception 'Expected ten existing videos; inspect live data first';
   end if;
   if (select count(*) from elite_cohort_v1_backup.policies
       where tablename = 'course_videos' and policyname = 'elite_videos_select' and cmd = 'SELECT') <> 1 then
