@@ -9,6 +9,8 @@ Files: `20261002_cohort_v1_up.sql` and `20261002_cohort_v1_down.sql`. Both are t
 
 `flow_configs` currently has a unique `group_id`. The migration changes uniqueness to `(cohort, group_id)`. **The updated app action must deploy with the SQL**: publishing now reads the current cohort and upserts on `cohort,group_id`; unpublishing filters by both. Without this app change, a second-term publish can overwrite or conflict with first-term settings. The SQL guard requires the old unique constraint to be present. The existing three team forms also need a cohort value from the active member; current column defaults cover inserts, while their update/delete paths must add cohort filters. Roster writes need cohort and status controls in the UI; those are outside this B/C handoff.
 
+After rebasing onto the merged stage-six custom-chain implementation, `group_id` remains `sanitizeSplitConfig(payload).group`. For a custom chain this is its validated `c_…` chain ID, so the unique key is `(cohort, chain ID)`; the UI uses `resolveGroup(state)` for the same ID when choosing the current published config.
+
 `course_videos` cohort isolation is included here to satisfy AC3: the four existing links migrate to `2026-1`, and `elite_videos_select` applies the same cohort/common-material logic. Video v2 retains playback and per-video targeting UI. The separate `storage.objects` policies for private course files must also be inspected. **Known AC8 limit accepted by the product manager:** suspension stops issuing new signed URLs immediately; URLs already issued by the materials page remain valid until their one-hour expiry. AC8 verification measures immediate denial of metadata/new URL issuance and records this one-hour existing-link window.
 
 ## Preflight on a Supabase branch
