@@ -37,6 +37,13 @@ begin
   if (select count(*) from elite_cohort_v1_backup.flow_unique) <> 1 then
     raise exception 'Expected one flow_configs(group_id) unique constraint';
   end if;
+  if (select count(*) from elite.course_videos) <> 4 then
+    raise exception 'Expected four existing videos; inspect live data first';
+  end if;
+  if (select count(*) from elite_cohort_v1_backup.policies
+      where tablename = 'course_videos' and policyname = 'elite_videos_select' and cmd = 'SELECT') <> 1 then
+    raise exception 'Expected elite_videos_select SELECT policy';
+  end if;
 end $$;
 
 create table elite.cohorts (
@@ -105,11 +112,14 @@ alter table elite.enrollments alter column cohort set default elite.current_coho
 -- forms operational; the instructor UI must supply an explicit cohort for new content.
 alter table elite.course_materials add column cohort text;
 alter table elite.course_materials add column all_cohorts boolean not null default false;
+alter table elite.course_videos add column cohort text;
+alter table elite.course_videos add column all_cohorts boolean not null default false;
 alter table elite.flow_configs add column cohort text;
 alter table elite.team_meetings add column cohort text;
 alter table elite.trade_ledger add column cohort text;
 alter table elite.reviews add column cohort text;
 update elite.course_materials set cohort = '2026-1';
+update elite.course_videos set cohort = '2026-1';
 update elite.flow_configs set cohort = '2026-1';
 update elite.team_meetings set cohort = '2026-1';
 update elite.trade_ledger set cohort = '2026-1';
@@ -124,7 +134,7 @@ alter table elite.flow_configs add constraint flow_configs_cohort_group_unique u
 
 do $$ declare t text;
 begin
-  foreach t in array array['course_materials','flow_configs','team_meetings','trade_ledger','reviews'] loop
+  foreach t in array array['course_materials','course_videos','flow_configs','team_meetings','trade_ledger','reviews'] loop
     execute format('alter table elite.%I alter column cohort set not null', t);
     execute format('alter table elite.%I add constraint %I foreign key (cohort) references elite.cohorts(code)', t, t || '_cohort_fk');
     execute format('alter table elite.%I alter column cohort set default elite.my_cohort()', t);
@@ -139,8 +149,9 @@ declare p record; access_expr text; using_expr text; check_expr text; ddl text;
 begin
   for p in select * from elite_cohort_v1_backup.policies
            where tablename in ('course_materials','flow_configs','team_meetings','trade_ledger','reviews')
+              or (tablename = 'course_videos' and policyname = 'elite_videos_select')
   loop
-    if p.tablename = 'course_materials' then
+    if p.tablename in ('course_materials','course_videos') then
       access_expr := '(elite.is_instructor() or (elite.is_enrolled() and (cohort = elite.my_cohort() or all_cohorts)))';
     else
       access_expr := '(elite.is_instructor() or (elite.is_enrolled() and cohort = elite.my_cohort()))';

@@ -160,6 +160,7 @@ export function applySplitConfig(draft: FlowState, cfg: SplitConfig): void {
 /** elite.flow_configs 的一列（page.tsx 會再補 publisher 名字）。 */
 export type FlowConfigRow = {
   id: string;
+  cohort: string;
   group_id: string;
   title: string;
   note: string;

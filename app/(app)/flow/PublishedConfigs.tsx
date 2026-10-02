@@ -27,12 +27,14 @@ function fmt(iso: string): string {
 export function PublishedConfigs({
   configs,
   isInstructor,
+  targetCohort,
   state,
   update,
   notify,
 }: {
   configs: PublishedConfig[];
   isInstructor: boolean;
+  targetCohort: string;
   state: FlowState;
   update: (fn: (draft: FlowState) => void) => void;
   notify: (msg: string) => void;
@@ -42,8 +44,8 @@ export function PublishedConfigs({
   const [title, setTitle] = useState("");
   const rg = resolveGroup(state);
   const group = { id: rg.id, name: rg.name };
-  const current = configs.find((c) => c.group_id === group.id) ?? null;
-  const others = configs.filter((c) => c.group_id !== group.id);
+  const current = configs.find((c) => c.group_id === group.id && c.cohort === targetCohort) ?? null;
+  const others = configs.filter((c) => c.id !== current?.id);
 
   const apply = (c: PublishedConfig) => {
     const overwrites = !!(c.payload.chain && state.chains?.[c.payload.chain.id]);
@@ -72,7 +74,7 @@ export function PublishedConfigs({
   const unpublish = (c: PublishedConfig) =>
     start(async () => {
       if (!window.confirm(`撤回「${c.title || c.payload.groupName}」？學員將看不到這份設定（已套用的不受影響）。`)) return;
-      const res = await unpublishFlowConfig(c.group_id);
+      const res = await unpublishFlowConfig(c.cohort, c.group_id);
       if (!res.ok) {
         notify(`撤回失敗：${res.error}`);
         return;
@@ -84,7 +86,7 @@ export function PublishedConfigs({
   return (
     <div className="space-y-2 rounded-lg border border-dashed border-slate-300 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">講師下發的分段設定</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">講師下發的分段設定（當期 {targetCohort}）</h3>
         <span className="text-sm text-slate-400">
           {configs.length === 0 ? "講師尚未下發" : "按「套用」就和全班用同一套分段與 CCC 規則"}
         </span>
@@ -148,7 +150,7 @@ function ConfigRow({
       <div className="text-sm">
         <span className="font-medium text-slate-800">{c.title || c.payload.groupName}</span>
         <span className="ml-2 text-slate-400">
-          {c.payload.groupName}
+          {c.cohort}　·　{c.payload.groupName}
           {c.payload.chain
             ? `　·　自訂產業鏈・${c.payload.chain.subs.length} 子段・${chainStockCount(c.payload.chain)} 檔`
             : c.payload.custom

@@ -18,13 +18,15 @@ const FlowConsole = dynamic(() => import("./FlowConsole").then((m) => m.FlowCons
 export function FlowConsoleLoader({
   userId,
   isInstructor,
+  targetCohort,
   configs,
   runs,
 }: {
   userId: string;
   isInstructor: boolean;
+  targetCohort: string;
   configs: PublishedConfig[];
   runs: RunSummary[];
 }) {
-  return <FlowConsole userId={userId} isInstructor={isInstructor} configs={configs} initialRuns={runs} />;
+  return <FlowConsole userId={userId} isInstructor={isInstructor} targetCohort={targetCohort} configs={configs} initialRuns={runs} />;
 }

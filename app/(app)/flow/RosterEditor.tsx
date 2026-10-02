@@ -32,12 +32,14 @@ export function RosterEditor({
   notify,
   configs,
   isInstructor,
+  targetCohort,
 }: {
   state: FlowState;
   update: (fn: (draft: FlowState) => void) => void;
   notify: (msg: string) => void;
   configs: PublishedConfig[];
   isInstructor: boolean;
+  targetCohort: string;
 }) {
   const rg = resolveGroup(state);
   const group = { id: rg.id, name: rg.name };
@@ -144,6 +146,7 @@ export function RosterEditor({
       <PublishedConfigs
         configs={configs}
         isInstructor={isInstructor}
+        targetCohort={targetCohort}
         state={state}
         update={update}
         notify={notify}

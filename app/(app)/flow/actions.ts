@@ -162,6 +162,9 @@ export async function publishFlowConfig(payload: {
   config: string;
 }): Promise<ActionResult> {
   const { supabase, userId } = await requireInstructor();
+  const { data: currentCohort, error: cohortError } = await supabase
+    .schema("elite").from("cohorts").select("code").eq("is_current", true).single();
+  if (cohortError || !currentCohort) return { ok: false, error: "找不到當期期別" };
 
   let parsed: unknown;
   try {
@@ -178,6 +181,7 @@ export async function publishFlowConfig(payload: {
     .from("flow_configs")
     .upsert(
       {
+        cohort: currentCohort.code,
         group_id: cfg.group,
         title: payload.title.trim().slice(0, 100),
         note: payload.note.trim().slice(0, 2000),
@@ -185,15 +189,15 @@ export async function publishFlowConfig(payload: {
         published_by: userId,
         updated_at: now,
       },
-      { onConflict: "group_id" },
+      { onConflict: "cohort,group_id" },
     );
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
-export async function unpublishFlowConfig(groupId: string): Promise<ActionResult> {
+export async function unpublishFlowConfig(cohort: string, groupId: string): Promise<ActionResult> {
   const { supabase } = await requireInstructor();
-  const { error } = await supabase.schema("elite").from("flow_configs").delete().eq("group_id", groupId);
+  const { error } = await supabase.schema("elite").from("flow_configs").delete().eq("cohort", cohort).eq("group_id", groupId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
