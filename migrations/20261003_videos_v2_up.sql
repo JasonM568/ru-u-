@@ -1,5 +1,6 @@
 -- Videos v2. Apply only after the runbook preflight and with video writes frozen.
 begin;
+set local lock_timeout = '5s';
 lock table elite.course_videos in access exclusive mode;
 
 create schema elite_videos_v2_backup;
