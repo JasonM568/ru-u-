@@ -163,6 +163,7 @@ export async function publishFlowConfig(payload: {
   cohort: string;
 }): Promise<ActionResult> {
   const { supabase, userId } = await requireInstructor();
+  if (!payload.cohort?.trim()) return { ok: false, error: "請選擇目標期別" };
   const { data: targetCohort, error: cohortError } = await supabase
     .schema("elite").from("cohorts").select("code").eq("code", payload.cohort).maybeSingle();
   if (cohortError || !targetCohort) return { ok: false, error: "目標期別不正確" };

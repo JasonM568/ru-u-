@@ -234,7 +234,7 @@ export function RosterManager({
           confirm={<form action={setEnrollmentStatus}>
             <input type="hidden" name="user_id" value={pendingStatus.user_id} />
             <input type="hidden" name="status" value={pendingStatus.status === "active" ? "suspended" : "active"} />
-            <SubmitButton>{pendingStatus.status === "active" ? "確認停權" : "確認復權"}</SubmitButton>
+            <SubmitButton variant={pendingStatus.status === "active" ? "destructive" : "primary"}>{pendingStatus.status === "active" ? "確認停權" : "確認復權"}</SubmitButton>
           </form>}>
           {pendingStatus.status === "active"
             ? "學員將無法登入使用系統，既有作答與團隊紀錄會保留。復權後可恢復使用。"

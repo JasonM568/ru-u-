@@ -115,6 +115,8 @@ grant execute on function elite.current_cohort(), elite.my_cohort(), elite.my_en
 do $$ begin
   if has_table_privilege('authenticated', 'elite.cohorts', 'DELETE')
      or has_column_privilege('authenticated', 'elite.cohorts', 'is_current', 'UPDATE')
+     or has_column_privilege('authenticated', 'elite.cohorts', 'is_current', 'INSERT')
+     or has_column_privilege('authenticated', 'elite.cohorts', 'code', 'UPDATE')
      or has_table_privilege('anon', 'elite.cohorts', 'SELECT') then
     raise exception 'cohorts permissions are broader than intended';
   end if;

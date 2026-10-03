@@ -44,7 +44,7 @@ export function PublishedConfigs({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [title, setTitle] = useState("");
-  const [selectedCohort, setSelectedCohort] = useState(targetCohort);
+  const [selectedCohort, setSelectedCohort] = useState("");
   const rg = resolveGroup(state);
   const group = { id: rg.id, name: rg.name };
   const current = configs.find((c) => c.group_id === group.id && c.cohort === selectedCohort) ?? null;
@@ -58,7 +58,11 @@ export function PublishedConfigs({
     );
   };
 
-  const publish = () =>
+  const publish = () => {
+    if (!selectedCohort) {
+      notify("請選擇目標期別");
+      return;
+    }
     start(async () => {
       const res = await publishFlowConfig({
         title: title.trim() || `${group.name}　${new Date().toLocaleDateString("zh-TW")}`,
@@ -74,6 +78,7 @@ export function PublishedConfigs({
       setTitle("");
       router.refresh();
     });
+  };
 
   const unpublish = (c: PublishedConfig) =>
     start(async () => {
@@ -90,7 +95,7 @@ export function PublishedConfigs({
   return (
     <div className="space-y-2 rounded-lg border border-dashed border-slate-300 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">講師下發的分段設定（{isInstructor ? `目標 ${selectedCohort}` : `本期 ${targetCohort}`}）</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">講師下發的分段設定（{isInstructor ? `目標 ${selectedCohort || "尚未選擇"}` : `本期 ${targetCohort}`}）</h3>
         <span className="text-sm text-slate-400">
           {configs.length === 0 ? "講師尚未下發" : "按「套用」就和全班用同一套分段與 CCC 規則"}
         </span>
@@ -104,8 +109,9 @@ export function PublishedConfigs({
       {isInstructor && (
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
           <label className="text-sm text-slate-600" htmlFor="flow-target-cohort">目標期別</label>
-          <select id="flow-target-cohort" value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)}
+          <select id="flow-target-cohort" value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)} required
             className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800">
+            <option value="" disabled>請選擇目標期別</option>
             {cohorts.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
           </select>
           <input

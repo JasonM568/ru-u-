@@ -28,9 +28,8 @@ type DuplicateInfo = {
   created_at: string;
 };
 
-export function MaterialUploader({ cohorts, currentCohort }: {
+export function MaterialUploader({ cohorts }: {
   cohorts: { code: string; display_name: string }[];
-  currentCohort: string;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -95,6 +94,7 @@ export function MaterialUploader({ cohorts, currentCohort }: {
     if (!mime) return setError("僅接受 txt、jpg、png、webp、pdf、zip 檔案");
     if (file.size > MATERIAL_MAX_BYTES) return setError("檔案超過 30 MB 上限");
     if (!category) return setError("請選擇分類");
+    if (!targetCohort) return setError("請選擇目標期別");
 
     // 防呆：同名檔案已存在時先擋下提醒，由講師決定是否仍要上傳
     setPending(true);
@@ -189,7 +189,8 @@ export function MaterialUploader({ cohorts, currentCohort }: {
           <Input type="text" name="title" placeholder="例：Day 1 講義" />
         </Field>
         <Field label="目標期別" required>
-          <Select name="target_cohort" defaultValue={currentCohort} required>
+          <Select name="target_cohort" defaultValue="" required>
+            <option value="" disabled>請選擇目標期別</option>
             {cohorts.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
             <option value="__all__">多期通用（所有期別）</option>
           </Select>

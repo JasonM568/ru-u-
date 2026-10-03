@@ -85,7 +85,7 @@ export default async function MaterialsPage({
         title="課程教材"
         subtitle={
           isInstructor
-            ? "上傳講義與教材，全班學員皆可下載。"
+            ? "依目標期別，開放給該期學員下載。"
             : "講師提供的講義與教材，點檔名即可下載。"
         }
       />
@@ -106,7 +106,7 @@ export default async function MaterialsPage({
         </div>
       )}
 
-      {isInstructor && <MaterialUploader cohorts={cohorts ?? []} currentCohort={cohorts?.find((c) => c.is_current)?.code ?? ""} />}
+      {isInstructor && <MaterialUploader cohorts={cohorts ?? []} />}
 
       {materials.length === 0 ? (
         <EmptyState>尚無教材。</EmptyState>

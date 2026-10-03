@@ -23,6 +23,7 @@ export async function registerMaterial(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { supabase, userId } = await requireInstructor();
 
+  if (!input.targetCohort?.trim()) return { ok: false, error: "請選擇目標期別" };
   if (!PATH_RE.test(input.path)) return { ok: false, error: "檔案路徑格式不正確" };
   if (!MATERIAL_CATEGORIES.some((c) => c.key === input.category))
     return { ok: false, error: "分類不正確" };

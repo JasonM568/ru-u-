@@ -33,7 +33,7 @@ export function CohortManager({ cohorts }: { cohorts: Cohort[] }) {
             <input type="hidden" name="code" value={pendingCohort.code} />
             <SubmitButton>確認切換</SubmitButton>
           </form>}>
-          之後新加入名冊的成員會落在 {pendingCohort.display_name}。已有成員與內容不會自動改期別。
+          之後新加入名冊的成員會落在 {pendingCohort.display_name}。之後上傳教材、影片與發布分段設定時，需自行選擇目標期別。已有成員與內容不會自動改期別。
         </ConfirmDialog>
       )}
       <Card>

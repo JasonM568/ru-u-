@@ -61,7 +61,7 @@ export default async function VideosPage({
         title="課程影片"
         subtitle={
           isInstructor
-            ? "貼上 YouTube / Vimeo 連結，全班學員登入後即可觀看。"
+            ? "貼上 YouTube / Vimeo 連結，依目標期別開放觀看。"
             : "講師提供的課程影片，點播放即可觀看。"
         }
       />
@@ -119,7 +119,8 @@ export default async function VideosPage({
                 <Textarea name="note" placeholder="這支影片的重點、建議觀看的段落…" />
               </Field>
               <Field label="目標期別" required>
-                <Select name="target_cohort" defaultValue={cohorts?.find((c) => c.is_current)?.code ?? ""} required>
+                <Select name="target_cohort" defaultValue="" required>
+                  <option value="" disabled>請選擇目標期別</option>
                   {cohorts?.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
                   <option value="__all__">多期通用（所有期別）</option>
                 </Select>

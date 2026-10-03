@@ -15,6 +15,7 @@ export async function createVideo(formData: FormData) {
   const note = String(formData.get("note") ?? "").trim() || null;
   const selectedCohort = String(formData.get("target_cohort") ?? "");
 
+  if (!selectedCohort.trim()) redirect("/videos?error=" + encodeURIComponent("請選擇目標期別"));
   if (!title || !url) redirect("/videos?error=" + encodeURIComponent("標題與網址皆必填"));
   if (!MATERIAL_CATEGORIES.some((c) => c.key === category))
     redirect("/videos?error=" + encodeURIComponent("分類不正確"));
