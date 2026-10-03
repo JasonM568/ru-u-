@@ -10,7 +10,7 @@ export default async function RosterPage({
   const { supabase } = await requireInstructor();
   const sp = await searchParams;
 
-  const [{ data: profiles }, { data: enrollments }] = await Promise.all([
+  const [{ data: profiles }, { data: enrollments }, { data: cohorts }] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, display_name, email")
@@ -18,8 +18,9 @@ export default async function RosterPage({
     supabase
       .schema("elite")
       .from("enrollments")
-      .select("user_id, class_role, job_role, team_id, display_name")
+      .select("user_id, class_role, job_role, team_id, display_name, cohort, status")
       .order("team_id", { ascending: true }),
+    supabase.schema("elite").from("cohorts").select("code, display_name, is_current").order("code"),
   ]);
 
   return (
@@ -53,6 +54,7 @@ export default async function RosterPage({
       <RosterManager
         profiles={profiles ?? []}
         enrollments={enrollments ?? []}
+        cohorts={cohorts ?? []}
       />
     </div>
   );

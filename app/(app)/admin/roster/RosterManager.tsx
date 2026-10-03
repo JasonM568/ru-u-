@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, Field, Select, Badge } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { JOB_ROLES, TEAMS } from "@/lib/constants";
-import { upsertEnrollment, removeEnrollment } from "../actions";
+import { upsertEnrollment, removeEnrollment, setEnrollmentStatus } from "../actions";
 
 type Profile = { id: string; display_name: string | null; email: string | null };
 type Enrollment = {
@@ -13,16 +13,23 @@ type Enrollment = {
   job_role: string | null;
   team_id: number | null;
   display_name: string | null;
+  cohort: string;
+  status: "active" | "suspended";
 };
+type Cohort = { code: string; display_name: string; is_current: boolean };
 
 function RoleTeamFields({
   classRole,
   jobRole,
   teamId,
+  cohort,
+  cohorts,
 }: {
   classRole?: string;
   jobRole?: string | null;
   teamId?: number | null;
+  cohort?: string;
+  cohorts: Cohort[];
 }) {
   return (
     <>
@@ -52,6 +59,11 @@ function RoleTeamFields({
           ))}
         </Select>
       </Field>
+      <Field label="期別">
+        <Select name="cohort" defaultValue={cohort ?? cohorts.find((c) => c.is_current)?.code ?? ""} required>
+          {cohorts.map((c) => <option key={c.code} value={c.code}>{c.display_name}{c.is_current ? "（當期）" : ""}</option>)}
+        </Select>
+      </Field>
     </>
   );
 }
@@ -59,12 +71,17 @@ function RoleTeamFields({
 export function RosterManager({
   profiles,
   enrollments,
+  cohorts,
 }: {
   profiles: Profile[];
   enrollments: Enrollment[];
+  cohorts: Cohort[];
 }) {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Profile | null>(null);
+  const [cohortFilter, setCohortFilter] = useState("all");
+  const current = cohorts.find((c) => c.is_current);
+  const filtered = cohortFilter === "all" ? enrollments : enrollments.filter((e) => e.cohort === cohortFilter);
 
   const enrolledIds = useMemo(
     () => new Set(enrollments.map((e) => e.user_id)),
@@ -89,6 +106,7 @@ export function RosterManager({
       {/* 新增成員 */}
       <Card>
         <h2 className="mb-3 font-semibold text-slate-800">加入 QBC 會員到本班</h2>
+        <p className="mb-3 text-sm text-slate-600">新成員預設加入 {current?.display_name ?? "當期"}。可在送出前調整。</p>
         <input
           value={q}
           onChange={(e) => {
@@ -129,8 +147,8 @@ export function RosterManager({
               <b className="text-slate-800">{selected.display_name}</b>
               <span className="ml-2 text-xs text-slate-400">{selected.email}</span>
             </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <RoleTeamFields />
+            <div className="grid gap-3 sm:grid-cols-4">
+              <RoleTeamFields cohorts={cohorts} />
             </div>
             <div className="mt-3 flex gap-2">
               <SubmitButton>加入名冊</SubmitButton>
@@ -148,28 +166,32 @@ export function RosterManager({
 
       {/* 現有名冊 */}
       <Card>
-        <h2 className="mb-3 font-semibold text-slate-800">
-          目前名冊（{enrollments.length}）
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold text-slate-800">目前名冊（{filtered.length}／{enrollments.length}）</h2>
+          <Select aria-label="依期別篩選名冊" value={cohortFilter} onChange={(e) => setCohortFilter(e.target.value)}>
+            <option value="all">全部期別</option>
+            {cohorts.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
+          </Select>
+        </div>
         <div className="space-y-3">
-          {enrollments.map((e) => (
+          {filtered.map((e) => (
             <div
               key={e.user_id}
-              className="rounded-lg border border-slate-200 p-3"
+              className={`rounded-lg border p-3 ${e.status === "suspended" ? "border-rose-400 bg-rose-50" : "border-slate-200"}`}
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-medium text-slate-800">
                   {e.display_name ?? "（未命名）"}
                 </span>
-                {e.class_role === "instructor" ? (
-                  <Badge tone="amber">講師</Badge>
-                ) : (
-                  <Badge tone="indigo">學員</Badge>
-                )}
+                <span className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">{e.cohort}</span>
+                  {e.status === "suspended" && <Badge tone="rose">已停權</Badge>}
+                  {e.class_role === "instructor" ? <Badge tone="amber">講師</Badge> : <Badge tone="indigo">學員</Badge>}
+                </span>
               </div>
               <form
                 action={upsertEnrollment}
-                className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
+                className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]"
               >
                 <input type="hidden" name="user_id" value={e.user_id} />
                 <input
@@ -181,9 +203,21 @@ export function RosterManager({
                   classRole={e.class_role}
                   jobRole={e.job_role}
                   teamId={e.team_id}
+                  cohort={e.cohort}
+                  cohorts={cohorts}
                 />
                 <SubmitButton variant="ghost">儲存</SubmitButton>
               </form>
+              {e.class_role === "student" && (
+                <form action={setEnrollmentStatus} className="mt-2" onSubmit={(event) => {
+                  const verb = e.status === "active" ? "停權" : "復權";
+                  if (!window.confirm(`${verb}「${e.display_name ?? "這位學員"}」？${e.status === "active" ? "學員將立即無法使用系統，但紀錄保留。" : "學員將恢復原本的觀看與填寫權限。"}`)) event.preventDefault();
+                }}>
+                  <input type="hidden" name="user_id" value={e.user_id} />
+                  <input type="hidden" name="status" value={e.status === "active" ? "suspended" : "active"} />
+                  <button type="submit" className="text-xs text-amber-500 hover:underline">{e.status === "active" ? "停權" : "復權"}</button>
+                </form>
+              )}
               <form action={removeEnrollment} className="mt-2">
                 <input type="hidden" name="user_id" value={e.user_id} />
                 <button

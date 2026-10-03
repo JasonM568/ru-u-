@@ -60,6 +60,7 @@ end $$;
 drop function elite.set_current_cohort(text);
 drop function elite.current_cohort();
 drop function elite.my_cohort();
+drop function elite.my_enrollment_status();
 
 alter table elite.flow_configs drop constraint flow_configs_cohort_group_unique;
 do $$ declare p record;

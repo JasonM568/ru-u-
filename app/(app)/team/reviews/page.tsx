@@ -21,6 +21,7 @@ export default async function ReviewsPage({
     .from("reviews")
     .select("*")
     .eq("team_id", teamId)
+    .eq("cohort", enrollment.cohort)
     .order("review_date", { ascending: false });
 
   const canWrite = enrollment.class_role === "student" && !!teamId;

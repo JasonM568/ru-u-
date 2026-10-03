@@ -25,12 +25,14 @@ export default async function MeetingsPage({
       .from("team_meetings")
       .select("*")
       .eq("team_id", teamId)
+      .eq("cohort", enrollment.cohort)
       .order("meet_date", { ascending: false }),
     supabase
       .schema("elite")
       .from("enrollments")
       .select("display_name")
       .eq("team_id", teamId)
+      .eq("cohort", enrollment.cohort)
       .eq("class_role", "student")
       .order("display_name", { ascending: true }),
   ]);

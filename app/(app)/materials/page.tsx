@@ -13,6 +13,7 @@ type Material = {
   mime_type: string;
   size_bytes: number;
   created_at: string;
+  all_cohorts: boolean;
 };
 
 function formatSize(bytes: number): string {
@@ -129,6 +130,7 @@ export default async function MaterialsPage({
                           </a>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                             <Badge tone="indigo">{fileKind(m.mime_type)}</Badge>
+                            {m.all_cohorts && <Badge tone="green">多期通用</Badge>}
                             <span>{formatSize(m.size_bytes)}</span>
                             <span>{m.original_name}</span>
                             <span>

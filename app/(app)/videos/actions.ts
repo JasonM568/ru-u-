@@ -13,6 +13,7 @@ export async function createVideo(formData: FormData) {
   const url = String(formData.get("url") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim() || null;
+  const allCohorts = formData.get("all_cohorts") === "on";
 
   if (!title || !url) redirect("/videos?error=" + encodeURIComponent("標題與網址皆必填"));
   if (!MATERIAL_CATEGORIES.some((c) => c.key === category))
@@ -22,11 +23,14 @@ export async function createVideo(formData: FormData) {
       "/videos?error=" +
         encodeURIComponent("無法辨識的影片網址，目前支援 YouTube 與 Vimeo 連結"),
     );
+  const { data: current, error: cohortError } = await supabase.schema("elite")
+    .from("cohorts").select("code").eq("is_current", true).single();
+  if (cohortError || !current) redirect("/videos?error=" + encodeURIComponent("無法取得當期"));
 
   const { error } = await supabase
     .schema("elite")
     .from("course_videos")
-    .insert({ category, title, url, note, created_by: userId });
+    .insert({ category, title, url, note, cohort: current.code, all_cohorts: allCohorts, created_by: userId });
   if (error) redirect(`/videos?error=${encodeURIComponent(error.message)}`);
 
   revalidatePath("/videos");

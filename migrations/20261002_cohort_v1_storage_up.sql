@@ -14,10 +14,17 @@ begin
                    and column_name = 'all_cohorts') then
     raise exception 'Apply main Cohort v1 migration first';
   end if;
+  if to_regclass('elite_cohort_v1_backup.storage_paths') is null then
+    raise exception 'Storage baseline is missing';
+  end if;
   if exists (select 1 from elite.course_materials m
              where not exists (select 1 from storage.objects o
                                where o.bucket_id = 'elite-materials' and o.name = m.storage_path)) then
     raise exception 'Material metadata and Storage paths differ';
+  end if;
+  if exists (select 1 from storage.objects o where o.bucket_id = 'elite-materials'
+             and not exists (select 1 from elite.course_materials m where m.storage_path = o.name)) then
+    raise exception 'Untracked material Storage object exists';
   end if;
 end $$;
 

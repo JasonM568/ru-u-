@@ -8,8 +8,15 @@ const TIMING_LABEL: Record<string, string> = {
   watch: "觀望",
 };
 
-export default async function AdminTeamsPage() {
+export default async function AdminTeamsPage({ searchParams }: {
+  searchParams: Promise<{ cohort?: string }>;
+}) {
   const { supabase } = await requireInstructor();
+  const { cohort: requestedCohort } = await searchParams;
+  const { data: cohorts } = await supabase.schema("elite").from("cohorts")
+    .select("code, display_name, is_current").order("code");
+  const selectedCohort = cohorts?.find((c) => c.code === requestedCohort)?.code
+    ?? cohorts?.find((c) => c.is_current)?.code ?? cohorts?.[0]?.code;
 
   const [{ data: members }, { data: meetings }, { data: trades }, { data: reviews }] =
     await Promise.all([
@@ -17,21 +24,25 @@ export default async function AdminTeamsPage() {
         .schema("elite")
         .from("enrollments")
         .select("display_name, job_role, team_id")
+        .eq("cohort", selectedCohort)
         .eq("class_role", "student"),
       supabase
         .schema("elite")
         .from("team_meetings")
         .select("*")
+        .eq("cohort", selectedCohort)
         .order("meet_date", { ascending: false }),
       supabase
         .schema("elite")
         .from("trade_ledger")
         .select("*")
+        .eq("cohort", selectedCohort)
         .order("trade_date", { ascending: false }),
       supabase
         .schema("elite")
         .from("reviews")
         .select("*")
+        .eq("cohort", selectedCohort)
         .order("review_date", { ascending: false }),
     ]);
 
@@ -44,8 +55,16 @@ export default async function AdminTeamsPage() {
     <div>
       <PageHeader
         title="團隊運轉紀錄"
-        subtitle="兩隊的例會、決策台帳與覆盤（唯讀彙整，講師檢視用）"
+        subtitle="依期別檢視各隊例會、決策台帳與覆盤（講師唯讀）"
       />
+      <form className="mb-4 flex items-center gap-2" method="get">
+        <label htmlFor="team-cohort" className="text-sm text-slate-600">期別</label>
+        <select id="team-cohort" name="cohort" defaultValue={selectedCohort}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+          {cohorts?.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
+        </select>
+        <button type="submit" className="btn-gold rounded-lg px-3 py-2 text-sm">檢視</button>
+      </form>
       <div className="space-y-6">
         {TEAMS.map((t) => {
           const tm = byTeam(members, t.id);

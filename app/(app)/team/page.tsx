@@ -26,10 +26,10 @@ export default async function TeamHub({
 
   const [{ count: meetings }, { count: trades }, { count: reviews }, { data: members }] =
     await Promise.all([
-      supabase.schema("elite").from("team_meetings").select("*", { count: "exact", head: true }).eq("team_id", teamId),
-      supabase.schema("elite").from("trade_ledger").select("*", { count: "exact", head: true }).eq("team_id", teamId),
-      supabase.schema("elite").from("reviews").select("*", { count: "exact", head: true }).eq("team_id", teamId),
-      supabase.schema("elite").from("enrollments").select("display_name, job_role").eq("team_id", teamId).eq("class_role", "student"),
+      supabase.schema("elite").from("team_meetings").select("*", { count: "exact", head: true }).eq("team_id", teamId).eq("cohort", enrollment.cohort),
+      supabase.schema("elite").from("trade_ledger").select("*", { count: "exact", head: true }).eq("team_id", teamId).eq("cohort", enrollment.cohort),
+      supabase.schema("elite").from("reviews").select("*", { count: "exact", head: true }).eq("team_id", teamId).eq("cohort", enrollment.cohort),
+      supabase.schema("elite").from("enrollments").select("display_name, job_role").eq("team_id", teamId).eq("cohort", enrollment.cohort).eq("class_role", "student"),
     ]);
 
   const cards = [

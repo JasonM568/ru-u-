@@ -8,6 +8,15 @@ begin
         and policyname = 'elite_materials_storage_select' and cmd = 'SELECT') <> 1 then
     raise exception 'Expected one elite_materials_storage_select SELECT policy';
   end if;
+  if to_regclass('elite_cohort_v1_backup.storage_paths') is null then
+    raise exception 'Storage baseline is missing';
+  end if;
+  if exists (select name from storage.objects where bucket_id = 'elite-materials'
+             except select name from elite_cohort_v1_backup.storage_paths)
+     or exists (select name from elite_cohort_v1_backup.storage_paths
+                except select name from storage.objects where bucket_id = 'elite-materials') then
+    raise exception 'Material Storage objects changed since migration; rollback unsafe';
+  end if;
   if exists (select 1 from elite.enrollments where cohort <> '2026-1' or status <> 'active')
      or exists (select 1 from elite.course_materials where cohort <> '2026-1' or all_cohorts)
      or exists (select 1 from elite.course_videos where cohort <> '2026-1' or all_cohorts)

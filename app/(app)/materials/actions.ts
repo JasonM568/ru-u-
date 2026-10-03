@@ -14,6 +14,7 @@ export type RegisterMaterialInput = {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
+  allCohorts: boolean;
 };
 
 /** 瀏覽器直傳 Storage 成功後呼叫，寫入教材 metadata。失敗時補償刪除已上傳的檔案。 */
@@ -27,6 +28,9 @@ export async function registerMaterial(
     return { ok: false, error: "分類不正確" };
   if (input.sizeBytes <= 0 || input.sizeBytes > MATERIAL_MAX_BYTES)
     return { ok: false, error: "檔案大小超過上限" };
+  const { data: current, error: cohortError } = await supabase.schema("elite")
+    .from("cohorts").select("code").eq("is_current", true).single();
+  if (cohortError || !current) return { ok: false, error: "無法取得當期" };
 
   const { error } = await supabase
     .schema("elite")
@@ -38,6 +42,8 @@ export async function registerMaterial(
       storage_path: input.path,
       mime_type: input.mimeType,
       size_bytes: input.sizeBytes,
+      all_cohorts: input.allCohorts === true,
+      cohort: current.code,
       uploaded_by: userId,
     });
 

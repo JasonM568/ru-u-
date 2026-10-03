@@ -23,6 +23,7 @@ export function AppNav({
     links.push({ href: "/team", label: "團隊運轉" });
   }
   if (isInstructor) {
+    links.push({ href: "/admin/cohorts", label: "期別" });
     links.push({ href: "/admin/roster", label: "名冊" });
     links.push({ href: "/admin/results", label: "問卷分流" });
     links.push({ href: "/questionnaire", label: "填問卷（測試）" });

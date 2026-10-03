@@ -32,6 +32,7 @@ export async function createMeeting(formData: FormData) {
     .from("team_meetings")
     .insert({
       team_id: enrollment.team_id,
+      cohort: enrollment.cohort,
       meet_date: str(formData, "meet_date") ?? new Date().toISOString().slice(0, 10),
       host: str(formData, "host"),
       attendees:
@@ -90,7 +91,8 @@ export async function updateMeeting(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("team_id", enrollment.team_id);
+    .eq("team_id", enrollment.team_id)
+    .eq("cohort", enrollment.cohort);
   if (error) redirect(`/team/meetings?error=${encodeURIComponent(error.message)}`);
   revalidatePath("/team/meetings");
   redirect("/team/meetings?saved=1");
@@ -104,6 +106,7 @@ export async function createTrade(formData: FormData) {
     .from("trade_ledger")
     .insert({
       team_id: enrollment.team_id,
+      cohort: enrollment.cohort,
       trade_date: str(formData, "trade_date") ?? new Date().toISOString().slice(0, 10),
       symbol: str(formData, "symbol"),
       direction: str(formData, "direction"),
@@ -144,7 +147,8 @@ export async function updateTrade(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("team_id", enrollment.team_id);
+    .eq("team_id", enrollment.team_id)
+    .eq("cohort", enrollment.cohort);
   if (error) redirect(`/team/ledger?error=${encodeURIComponent(error.message)}`);
   revalidatePath("/team/ledger");
   redirect("/team/ledger?saved=1");
@@ -164,6 +168,7 @@ export async function createReview(formData: FormData) {
     .from("reviews")
     .insert({
       team_id: enrollment.team_id,
+      cohort: enrollment.cohort,
       review_date: str(formData, "review_date") ?? new Date().toISOString().slice(0, 10),
       predictions,
       pnl: str(formData, "pnl"),
@@ -206,7 +211,8 @@ export async function updateReview(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("team_id", enrollment.team_id);
+    .eq("team_id", enrollment.team_id)
+    .eq("cohort", enrollment.cohort);
   if (error) redirect(`/team/reviews?error=${encodeURIComponent(error.message)}`);
   revalidatePath("/team/reviews");
   redirect("/team/reviews?saved=1");

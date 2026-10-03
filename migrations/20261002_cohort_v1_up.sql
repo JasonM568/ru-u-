@@ -14,6 +14,10 @@ from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'elite' and p.proname in ('is_enrolled', 'my_team');
 create table elite_cohort_v1_backup.enrollments as
 select user_id, cohort from elite.enrollments;
+create table elite_cohort_v1_backup.video_count as
+select count(*)::bigint as row_count from elite.course_videos;
+create table elite_cohort_v1_backup.storage_paths as
+select name from storage.objects where bucket_id = 'elite-materials';
 create table elite_cohort_v1_backup.flow_unique as
 select c.conname, pg_get_constraintdef(c.oid) as definition
 from pg_constraint c
@@ -36,9 +40,6 @@ begin
   end if;
   if (select count(*) from elite_cohort_v1_backup.flow_unique) <> 1 then
     raise exception 'Expected one flow_configs(group_id) unique constraint';
-  end if;
-  if (select count(*) from elite.course_videos) <> 10 then
-    raise exception 'Expected ten existing videos; inspect live data first';
   end if;
   if (select count(*) from elite_cohort_v1_backup.policies
       where tablename = 'course_videos' and policyname = 'elite_videos_select' and cmd = 'SELECT') <> 1 then
@@ -74,6 +75,9 @@ create or replace function elite.my_cohort() returns text
 language sql stable security definer set search_path = ''
 as $$ select cohort from elite.enrollments
        where user_id = auth.uid() and status = 'active' limit 1 $$;
+create or replace function elite.my_enrollment_status() returns text
+language sql stable security definer set search_path = ''
+as $$ select status from elite.enrollments where user_id = auth.uid() limit 1 $$;
 create or replace function elite.is_enrolled() returns boolean
 language sql stable security definer set search_path = ''
 as $$ select exists(select 1 from elite.enrollments
@@ -102,8 +106,8 @@ create policy cohorts_update on elite.cohorts for update to authenticated
 using (elite.is_enrolled() and elite.is_instructor()) with check (elite.is_enrolled() and elite.is_instructor());
 grant select, insert (code, display_name, started_on) on elite.cohorts to authenticated;
 grant update (display_name, started_on) on elite.cohorts to authenticated;
-grant execute on function elite.current_cohort(), elite.my_cohort(), elite.set_current_cohort(text) to authenticated;
-revoke execute on function elite.current_cohort(), elite.my_cohort(), elite.set_current_cohort(text) from public;
+grant execute on function elite.current_cohort(), elite.my_cohort(), elite.my_enrollment_status(), elite.set_current_cohort(text) to authenticated;
+revoke execute on function elite.current_cohort(), elite.my_cohort(), elite.my_enrollment_status(), elite.set_current_cohort(text) from public;
 
 -- New roster inserts inherit the current term; explicit instructor edits remain possible.
 alter table elite.enrollments alter column cohort set default elite.current_cohort();
@@ -191,6 +195,10 @@ begin
   end if;
   if (select count(*) from elite.enrollments where cohort = '2026-1') <> 14 then
     raise exception 'Migration roster mismatch';
+  end if;
+  if (select count(*) from elite.course_videos) <> (select row_count from elite_cohort_v1_backup.video_count)
+     or exists (select 1 from elite.course_videos where cohort <> '2026-1') then
+    raise exception 'Migration video backfill mismatch';
   end if;
 end $$;
 commit;

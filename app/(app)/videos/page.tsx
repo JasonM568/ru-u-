@@ -8,6 +8,7 @@ import {
   Input,
   Textarea,
   Select,
+  Badge,
 } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { videoEmbedUrl } from "@/lib/video";
@@ -20,6 +21,7 @@ type Video = {
   url: string;
   note: string | null;
   created_at: string;
+  all_cohorts: boolean;
 };
 
 export default async function VideosPage({
@@ -112,6 +114,10 @@ export default async function VideosPage({
               <Field label="說明（選填）">
                 <Textarea name="note" placeholder="這支影片的重點、建議觀看的段落…" />
               </Field>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="all_cohorts" className="size-4" />
+                多期通用（所有期別學員可看）
+              </label>
               <SubmitButton>新增影片</SubmitButton>
             </form>
           </details>
@@ -159,6 +165,7 @@ export default async function VideosPage({
                         <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="font-medium text-slate-800">{v.title}</p>
+                            {v.all_cohorts && <Badge tone="green">多期通用</Badge>}
                             {v.note && (
                               <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
                                 {v.note}
