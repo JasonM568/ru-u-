@@ -13,6 +13,8 @@ type Material = {
   mime_type: string;
   size_bytes: number;
   created_at: string;
+  all_cohorts: boolean;
+  cohort: string;
 };
 
 function formatSize(bytes: number): string {
@@ -42,6 +44,9 @@ export default async function MaterialsPage({
     .select("*")
     .order("created_at", { ascending: false });
   const materials = (data ?? []) as Material[];
+  const { data: cohorts } = isInstructor
+    ? await supabase.schema("elite").from("cohorts").select("code, display_name, is_current").order("code")
+    : { data: null };
 
   // 批次簽 1 小時效期的下載連結，再逐筆附上原始檔名讓下載落地檔名正確
   const urlByPath = new Map<string, string>();
@@ -80,7 +85,7 @@ export default async function MaterialsPage({
         title="課程教材"
         subtitle={
           isInstructor
-            ? "上傳講義與教材，全班學員皆可下載。"
+            ? "依目標期別，開放給該期學員下載。"
             : "講師提供的講義與教材，點檔名即可下載。"
         }
       />
@@ -101,7 +106,7 @@ export default async function MaterialsPage({
         </div>
       )}
 
-      {isInstructor && <MaterialUploader />}
+      {isInstructor && <MaterialUploader cohorts={cohorts ?? []} />}
 
       {materials.length === 0 ? (
         <EmptyState>尚無教材。</EmptyState>
@@ -129,6 +134,8 @@ export default async function MaterialsPage({
                           </a>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                             <Badge tone="indigo">{fileKind(m.mime_type)}</Badge>
+                            {m.all_cohorts && <Badge tone="green">多期通用</Badge>}
+                            {isInstructor && <Badge tone="amber">{m.cohort}</Badge>}
                             <span>{formatSize(m.size_bytes)}</span>
                             <span>{m.original_name}</span>
                             <span>

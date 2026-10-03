@@ -8,6 +8,7 @@ import {
   Input,
   Textarea,
   Select,
+  Badge,
 } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { videoEmbedUrl } from "@/lib/video";
@@ -20,6 +21,8 @@ type Video = {
   url: string;
   note: string | null;
   created_at: string;
+  all_cohorts: boolean;
+  cohort: string;
 };
 
 export default async function VideosPage({
@@ -37,6 +40,9 @@ export default async function VideosPage({
     .select("*")
     .order("created_at", { ascending: true });
   const videos = (data ?? []) as Video[];
+  const { data: cohorts } = isInstructor
+    ? await supabase.schema("elite").from("cohorts").select("code, display_name, is_current").order("code")
+    : { data: null };
 
   // 依固定分類順序分組；不在清單內的舊分類歸到「其他」
   const knownKeys = MATERIAL_CATEGORIES.map((c) => c.key as string);
@@ -55,7 +61,7 @@ export default async function VideosPage({
         title="課程影片"
         subtitle={
           isInstructor
-            ? "貼上 YouTube / Vimeo 連結，全班學員登入後即可觀看。"
+            ? "貼上 YouTube / Vimeo 連結，依目標期別開放觀看。"
             : "講師提供的課程影片，點播放即可觀看。"
         }
       />
@@ -112,6 +118,13 @@ export default async function VideosPage({
               <Field label="說明（選填）">
                 <Textarea name="note" placeholder="這支影片的重點、建議觀看的段落…" />
               </Field>
+              <Field label="目標期別" required>
+                <Select name="target_cohort" defaultValue="" required>
+                  <option value="" disabled>請選擇目標期別</option>
+                  {cohorts?.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
+                  <option value="__all__">多期通用（所有期別）</option>
+                </Select>
+              </Field>
               <SubmitButton>新增影片</SubmitButton>
             </form>
           </details>
@@ -159,6 +172,8 @@ export default async function VideosPage({
                         <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="font-medium text-slate-800">{v.title}</p>
+                            {v.all_cohorts && <Badge tone="green">多期通用</Badge>}
+                            {isInstructor && <Badge tone="amber">{v.cohort}</Badge>}
                             {v.note && (
                               <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
                                 {v.note}

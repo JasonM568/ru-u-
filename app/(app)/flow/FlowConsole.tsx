@@ -53,11 +53,15 @@ function loadState(key: string): FlowState {
 export function FlowConsole({
   userId,
   isInstructor,
+  targetCohort,
+  cohorts,
   configs,
   initialRuns,
 }: {
   userId: string;
   isInstructor: boolean;
+  targetCohort: string;
+  cohorts: { code: string; display_name: string }[];
   configs: PublishedConfig[];
   initialRuns: RunSummary[];
 }) {
@@ -699,6 +703,8 @@ export function FlowConsole({
           subs={subs}
           configs={configs}
           isInstructor={isInstructor}
+          targetCohort={targetCohort}
+          cohorts={cohorts}
           runId={runId}
         />
       ))}
@@ -744,6 +750,8 @@ function StationBlock({
   subs,
   configs,
   isInstructor,
+  targetCohort,
+  cohorts,
   runId,
 }: {
   station: Station;
@@ -756,6 +764,8 @@ function StationBlock({
   subs: ReturnType<typeof activeSubs>;
   configs: PublishedConfig[];
   isInstructor: boolean;
+  targetCohort: string;
+  cohorts: { code: string; display_name: string }[];
   runId: string | null;
 }) {
   const open = state.open[st.id] ?? (st.id === "PRE" || status.kind === "blocked");
@@ -866,7 +876,7 @@ function StationBlock({
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-600">
                 掃描名單
               </h3>
-              <RosterEditor state={state} update={update} notify={notify} configs={configs} isInstructor={isInstructor} />
+              <RosterEditor state={state} update={update} notify={notify} configs={configs} isInstructor={isInstructor} targetCohort={targetCohort} cohorts={cohorts} />
             </div>
           )}
 

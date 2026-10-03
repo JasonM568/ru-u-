@@ -20,6 +20,7 @@ type PendingUpload = {
   title: string;
   mime: string;
   ext: string;
+  targetCohort: string;
 };
 
 type DuplicateInfo = {
@@ -27,7 +28,9 @@ type DuplicateInfo = {
   created_at: string;
 };
 
-export function MaterialUploader() {
+export function MaterialUploader({ cohorts }: {
+  cohorts: { code: string; display_name: string }[];
+}) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, setPending] = useState(false);
@@ -58,6 +61,7 @@ export function MaterialUploader() {
         originalName: u.file.name,
         mimeType: u.mime,
         sizeBytes: u.file.size,
+        targetCohort: u.targetCohort,
       });
       if (!result.ok) {
         setError(`儲存失敗：${result.error}`);
@@ -82,6 +86,7 @@ export function MaterialUploader() {
     const file = fd.get("file") as File | null;
     const category = String(fd.get("category") ?? "");
     const title = String(fd.get("title") ?? "").trim();
+    const targetCohort = String(fd.get("target_cohort") ?? "");
 
     if (!file || file.size === 0) return setError("請選擇檔案");
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -89,6 +94,7 @@ export function MaterialUploader() {
     if (!mime) return setError("僅接受 txt、jpg、png、webp、pdf、zip 檔案");
     if (file.size > MATERIAL_MAX_BYTES) return setError("檔案超過 30 MB 上限");
     if (!category) return setError("請選擇分類");
+    if (!targetCohort) return setError("請選擇目標期別");
 
     // 防呆：同名檔案已存在時先擋下提醒，由講師決定是否仍要上傳
     setPending(true);
@@ -105,7 +111,7 @@ export function MaterialUploader() {
 
       if (existing) {
         setDuplicate({
-          upload: { file, category, title, mime, ext },
+          upload: { file, category, title, mime, ext, targetCohort },
           existing: existing as DuplicateInfo,
         });
         return;
@@ -114,7 +120,7 @@ export function MaterialUploader() {
       setPending(false);
     }
 
-    await doUpload({ file, category, title, mime, ext });
+    await doUpload({ file, category, title, mime, ext, targetCohort });
   }
 
   return (
@@ -181,6 +187,13 @@ export function MaterialUploader() {
         </Field>
         <Field label="標題" hint="留空則使用原始檔名">
           <Input type="text" name="title" placeholder="例：Day 1 講義" />
+        </Field>
+        <Field label="目標期別" required>
+          <Select name="target_cohort" defaultValue="" required>
+            <option value="" disabled>請選擇目標期別</option>
+            {cohorts.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
+            <option value="__all__">多期通用（所有期別）</option>
+          </Select>
         </Field>
         <div className="flex items-end">
           <button type="submit" disabled={pending} className="btn-gold w-full rounded-lg px-4 py-2 text-sm font-semibold sm:w-auto">

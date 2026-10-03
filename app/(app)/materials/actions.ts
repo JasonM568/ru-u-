@@ -14,6 +14,7 @@ export type RegisterMaterialInput = {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
+  targetCohort: string;
 };
 
 /** 瀏覽器直傳 Storage 成功後呼叫，寫入教材 metadata。失敗時補償刪除已上傳的檔案。 */
@@ -22,11 +23,19 @@ export async function registerMaterial(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { supabase, userId } = await requireInstructor();
 
+  if (!input.targetCohort?.trim()) return { ok: false, error: "請選擇目標期別" };
   if (!PATH_RE.test(input.path)) return { ok: false, error: "檔案路徑格式不正確" };
   if (!MATERIAL_CATEGORIES.some((c) => c.key === input.category))
     return { ok: false, error: "分類不正確" };
   if (input.sizeBytes <= 0 || input.sizeBytes > MATERIAL_MAX_BYTES)
     return { ok: false, error: "檔案大小超過上限" };
+  const { data: cohorts, error: cohortError } = await supabase.schema("elite")
+    .from("cohorts").select("code, is_current");
+  if (cohortError) return { ok: false, error: "無法取得期別" };
+  const current = cohorts?.find((c) => c.is_current)?.code;
+  const allCohorts = input.targetCohort === "__all__";
+  const targetCohort = allCohorts ? current : cohorts?.find((c) => c.code === input.targetCohort)?.code;
+  if (!targetCohort) return { ok: false, error: "目標期別不正確" };
 
   const { error } = await supabase
     .schema("elite")
@@ -38,6 +47,8 @@ export async function registerMaterial(
       storage_path: input.path,
       mime_type: input.mimeType,
       size_bytes: input.sizeBytes,
+      all_cohorts: allCohorts,
+      cohort: targetCohort,
       uploaded_by: userId,
     });
 

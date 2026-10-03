@@ -11,10 +11,11 @@ export default async function FlowPage() {
   const { supabase, userId, enrollment } = await requireEnrollment();
 
   // 講師下發的分段設定（RLS：名冊內都讀得到）＋ 發布者名字（JS 端 Map join）
-  const [{ data: cfgRows }, { data: members }, { data: runRows }] = await Promise.all([
+  const [{ data: cfgRows }, { data: members }, { data: runRows }, { data: cohorts }] = await Promise.all([
     supabase.schema("elite").from("flow_configs").select("*").order("updated_at", { ascending: false }),
     supabase.schema("elite").from("enrollments").select("user_id, display_name").eq("class_role", "instructor"),
     supabase.schema("elite").from("flow_runs").select("id, title, updated_at").eq("user_id", userId).order("updated_at", { ascending: false }),
+    supabase.schema("elite").from("cohorts").select("code, display_name, is_current").order("code"),
   ]);
   const runs = (runRows ?? []) as RunSummary[];
   const nameOf = new Map((members ?? []).map((m) => [m.user_id as string, m.display_name as string | null]));
@@ -27,6 +28,8 @@ export default async function FlowPage() {
     <FlowConsoleLoader
       userId={userId}
       isInstructor={enrollment.class_role === "instructor"}
+      targetCohort={enrollment.class_role === "instructor" ? cohorts?.find((c) => c.is_current)?.code ?? enrollment.cohort : enrollment.cohort}
+      cohorts={cohorts ?? []}
       configs={configs}
       runs={runs}
     />

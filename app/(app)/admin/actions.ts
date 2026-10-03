@@ -20,6 +20,14 @@ export async function upsertEnrollment(formData: FormData) {
   const { supabase } = await requireInstructor();
   const userId = str(formData, "user_id");
   if (!userId) redirect("/admin/roster?error=nouser");
+  let cohort = str(formData, "cohort");
+  if (!cohort) {
+    const { data: current } = await supabase.schema("elite").from("cohorts").select("code").eq("is_current", true).single();
+    cohort = current?.code ?? null;
+  }
+  if (!cohort) redirect("/admin/roster?error=nocohort");
+  const { data: selectedCohort } = await supabase.schema("elite").from("cohorts").select("code").eq("code", cohort).maybeSingle();
+  if (!selectedCohort) redirect("/admin/roster?error=invalidcohort");
 
   const { error } = await supabase
     .schema("elite")
@@ -27,6 +35,7 @@ export async function upsertEnrollment(formData: FormData) {
     .upsert(
       {
         user_id: userId,
+        cohort,
         class_role: str(formData, "class_role") ?? "student",
         job_role: str(formData, "job_role"),
         team_id: int(formData, "team_id"),
@@ -38,6 +47,49 @@ export async function upsertEnrollment(formData: FormData) {
   if (error) redirect(`/admin/roster?error=${encodeURIComponent(error.message)}`);
   revalidatePath("/admin/roster");
   redirect("/admin/roster?saved=1");
+}
+
+export async function setEnrollmentStatus(formData: FormData) {
+  const { supabase, userId: me } = await requireInstructor();
+  const userId = str(formData, "user_id");
+  const status = str(formData, "status");
+  if (!userId || !["active", "suspended"].includes(status ?? "") || userId === me)
+    redirect("/admin/roster?error=invalidstatus");
+  const { data: member } = await supabase.schema("elite").from("enrollments")
+    .select("class_role").eq("user_id", userId).maybeSingle();
+  if (member?.class_role !== "student") redirect("/admin/roster?error=invalidstatus");
+  const { error } = await supabase.schema("elite").from("enrollments")
+    .update({ status, updated_at: new Date().toISOString() }).eq("user_id", userId);
+  if (error) redirect(`/admin/roster?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/admin/roster");
+  redirect("/admin/roster?saved=1");
+}
+
+export async function createCohort(formData: FormData) {
+  const { supabase } = await requireInstructor();
+  const code = str(formData, "code");
+  const displayName = str(formData, "display_name");
+  if (!code || !/^\d{4}-\d+$/.test(code) || !displayName)
+    redirect("/admin/cohorts?error=invalid");
+  const { error } = await supabase.schema("elite").from("cohorts").insert({
+    code,
+    display_name: displayName,
+    started_on: str(formData, "started_on"),
+  });
+  if (error) redirect(`/admin/cohorts?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/admin/cohorts");
+  redirect("/admin/cohorts?saved=1");
+}
+
+export async function switchCurrentCohort(formData: FormData) {
+  const { supabase } = await requireInstructor();
+  const code = str(formData, "code");
+  if (!code) redirect("/admin/cohorts?error=invalid");
+  const { error } = await supabase.schema("elite").rpc("set_current_cohort", { p_code: code });
+  if (error) redirect(`/admin/cohorts?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/admin/cohorts");
+  revalidatePath("/admin/roster");
+  redirect("/admin/cohorts?current=1");
 }
 
 // ── 名冊：移除一位成員 ──

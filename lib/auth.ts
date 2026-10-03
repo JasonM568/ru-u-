@@ -9,6 +9,7 @@ export type Enrollment = {
   team_id: number | null;
   display_name: string | null;
   cohort: string;
+  status: "active" | "suspended";
 };
 
 export type SessionContext = {
@@ -31,6 +32,10 @@ export async function getSessionContext(): Promise<SessionContext> {
     .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
+  if (!enrollment) {
+    const { data: status } = await supabase.schema("elite").rpc("my_enrollment_status");
+    if (status === "suspended") redirect("/suspended");
+  }
 
   return {
     supabase,
@@ -46,6 +51,7 @@ export async function requireEnrollment(): Promise<
 > {
   const ctx = await getSessionContext();
   if (!ctx.enrollment) redirect("/not-enrolled");
+  if (ctx.enrollment.status === "suspended") redirect("/suspended");
   return ctx as SessionContext & { enrollment: Enrollment };
 }
 

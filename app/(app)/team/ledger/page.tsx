@@ -19,6 +19,7 @@ export default async function LedgerPage({
     .from("trade_ledger")
     .select("*")
     .eq("team_id", teamId)
+    .eq("cohort", enrollment.cohort)
     .order("trade_date", { ascending: false })
     .order("created_at", { ascending: false });
 
