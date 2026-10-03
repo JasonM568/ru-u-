@@ -9,13 +9,13 @@
 | 4 | 明列一期＋二期可見，後加的四期不可見；改成 `all` 後四期可見。 |
 | 5 | 指定二期 X：X 可見；二期 B 與一期均不可見。X 改期後個人列仍有效。從名冊刪除個人後，FK cascade 清掉其個人 audience 列。 |
 | 6 | 取消開通後，原指定對象立即查不到。 |
-| 7 | 瀏覽器點「沿用上一支」，期別勾選正確帶入；整批選二期／第一隊後選入 2 人；同分類覆寫有二次確認，明列 10 支影片且其他分類不受影響。PostgREST 測試兩支同分類影片原子覆寫成功，其他分類仍保留原可見集合。 |
+| 7 | 瀏覽器點「沿用上一支」，期別勾選正確帶入；整批選二期／第一隊後選入 2 人；同分類覆寫有二次確認，明列 10 支已開通影片，註明草稿不受影響。PostgREST 測試兩支同分類已開通影片原子覆寫成功，同分類草稿仍未開通，其他分類仍保留原可見集合。移除影片另有二次確認。 |
 | 8 | 停權合成身分在 RLS 直查影片為 0；新 audience 表有 restrictive active gate。 |
 | 9 | 目錄與側欄皆用目前 RLS 可見集合；第一集無上一集，最後一集無下一集；二期 0 支顯示空狀態而非錯誤；手機側欄收於播放器下方。 |
-| 10 | 以 stubbed oEmbed response 測 403→私人、404→轉檔中、200→可播放；私人影片訊息以暫時的本機測試回應擷取畫面，該測試分支未留在產品碼。新增流程的 server action 在寫 DB 前檢查 oEmbed，私人狀態回傳錯誤。尚未使用真實的私人 YouTube 帳號做外部端到端測試。 |
+| 10 | 以 stubbed oEmbed response 測 403→私人、404/429/逾時→未知、200→可播放。播放頁只在明確 401/403 時以私人提示取代 iframe，其餘回應保留 iframe；下方固定說明 YouTube 可能仍在處理中。真實 10 個正式影片 URL 經唯讀取出後僅注入本機合成 fixture，10/10 播放頁均有 iframe 與說明，oEmbed 皆回 200。新增流程的 server action 在寫 DB 前檢查 oEmbed，私人狀態回傳錯誤。尚未使用真實的私人 YouTube 帳號做外部端到端測試。 |
 | 11 | Playwright 以 390×844 視窗檢視播放器與收合側欄，無可見水平溢出。 |
 | 12 | `videos_v2_ac12_local.py` 使用 11 個合成一期 JWT context，比對 up 前後各人 10 個影片 ID，0 diff；另有正式庫唯讀快照腳本供 PM 上線時跑。 |
 
-工具門檻：`npx tsc --noEmit`、`npm run lint`、`npm test`（5+70 筆既有測試）、`npm run build`、`node scripts/test-videos-v2.mjs`、`npx tsx scripts/test-video-status.ts`、本機 SQL up/down 皆通過。lint 僅有既有 `app/layout.tsx` 字型警告，無錯誤。
+工具門檻：`npx tsc --noEmit`、`npm run lint`、`npm test`（5+70 筆既有測試）、`npm run build`、`node scripts/test-videos-v2.mjs`、`npx tsx scripts/test-video-status.ts`、本機 SQL up/down 皆通過。`VIDEOS_V2_LOCAL_PG_PORT=54422 python3 scripts/videos_v2_ac12_local.py` 建專用本機 DB 重跑 AC12，逐人 10 IDs、0 diff；同 DB 隨後執行 down，10 支均恢復一期。lint 僅有既有 `app/layout.tsx` 字型警告，無錯誤。
 
-截圖存於 repo 外的 `/Users/jasonmchen/Downloads/菁英班-系統開發/.proof-videos-v2/`，目錄 700、PNG 600：`catalog-student.png`、`catalog-instructor-draft.png`、`playback-desktop.png`、`playback-mobile.png`、`audience-dialog.png`、`category-confirm.png`、`private-video-instructor.png`。全部只用合成資料。
+截圖存於 repo 外的 `/Users/jasonmchen/Downloads/菁英班-系統開發/.proof-videos-v2/`，目錄 700、PNG 600：`catalog-student.png`、`catalog-instructor-draft.png`、`playback-desktop.png`、`playback-mobile.png`、`audience-dialog.png`、`category-confirm.png`、`delete-confirm.png`、`private-video-instructor.png`。新版播放截圖使用正式影片 URL 搭配本機合成帳號，其餘均只用合成資料。

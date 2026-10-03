@@ -37,7 +37,7 @@ export function VideoAdmin({ videos, audiences, cohorts, roster }: Props) {
   const [urlCheck, setUrlCheck] = useState("");
 
   const categoryVideos = useMemo(() => editing
-    ? videos.filter((v) => v.category === editing.category) : [], [editing, videos]);
+    ? videos.filter((v) => v.category === editing.category && v.published_at) : [], [editing, videos]);
   const people = roster.filter((p) => p.class_role === "student");
   const filteredPeople = people.filter((p) => personLabel(p).toLowerCase().includes(personSearch.toLowerCase()));
 
@@ -125,7 +125,7 @@ export function VideoAdmin({ videos, audiences, cohorts, roster }: Props) {
               const result = await response.json();
               if (input.value.trim() !== value) return;
               setUrlCheck(result.status === "private" ? "私人影片無法新增，請改成「不公開」"
-                : result.status === "processing" ? "影片可能仍在轉檔；新增後請先試播" : "影片狀態已確認");
+                : result.status === "unknown" ? "暫時無法確認影片狀態；新增後請先試播" : "影片狀態已確認；仍請先試播");
             } catch { setUrlCheck("暫時無法確認影片狀態，送出時會再檢查"); }
           }}
           className="rounded-lg border border-slate-300 bg-slate-50 p-2" />
@@ -171,7 +171,7 @@ export function VideoAdmin({ videos, audiences, cohorts, roster }: Props) {
           </section>
           <div className="flex flex-wrap gap-2 border-t border-slate-300 pt-4">
             <button type="button" onClick={copyPrevious} className="btn-ghost rounded-lg px-3 py-2">沿用上一支影片對象</button>
-            <button type="button" onClick={() => setConfirm("category")} className="btn-ghost rounded-lg px-3 py-2">套用到同分類所有影片</button>
+            <button type="button" disabled={categoryVideos.length === 0} onClick={() => setConfirm("category")} className="btn-ghost rounded-lg px-3 py-2 disabled:opacity-50">套用到同分類已開通影片</button>
           </div>
           {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
           <div className="flex flex-wrap justify-end gap-2">
@@ -184,7 +184,7 @@ export function VideoAdmin({ videos, audiences, cohorts, roster }: Props) {
     </div>}
     {editing && confirm && <ConfirmDialog title={confirm === "category" ? "確認覆寫同分類對象" : confirm === "unpublish" ? "確認取消開通" : "確認移除影片"}
       onCancel={() => setConfirm(null)} confirm={<button type="button" disabled={busy} onClick={confirmed} className="btn-gold rounded-lg px-4 py-2">確認</button>}>
-      {confirm === "category" ? <>以下 {categoryVideos.length} 支影片將改用目前選定對象：{categoryVideos.map((v) => v.title).join("、")}。其他分類不受影響。</>
+      {confirm === "category" ? <>以下 {categoryVideos.length} 支已開通影片將改用目前選定對象：{categoryVideos.map((v) => v.title).join("、") || "（目前沒有已開通影片）"}。草稿不受影響，其他分類不受影響。</>
         : confirm === "unpublish" ? <>「{editing.title}」將退回草稿，學員會立即看不到。</>
         : <>「{editing.title}」及其開通資料將永久移除。</>}
     </ConfirmDialog>}

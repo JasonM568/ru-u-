@@ -29,13 +29,39 @@ def write_private(path: Path, content: object) -> None:
     temp.replace(path)
 
 
+def visible_ids(project_dir: Path, uid: str) -> list[str]:
+    if not isinstance(uid, str) or len(uid) != 36:
+        raise ValueError("Invalid user UUID")
+    claims = json.dumps({"sub": uid, "role": "authenticated"}, separators=(",", ":"))
+    sql = ("BEGIN READ ONLY; SET LOCAL ROLE authenticated; "
+           f"SELECT set_config('request.jwt.claims','{claims}',true), "
+           f"set_config('request.jwt.claim.sub','{uid}',true); "
+           f"SELECT auth.uid()='{uid}'::uuid AS identity_ok, "
+           "coalesce(jsonb_agg(id::text ORDER BY id), '[]'::jsonb) AS video_ids "
+           "FROM elite.course_videos; ROLLBACK;")
+    rows = query(project_dir, sql)
+    if len(rows) != 1 or rows[0]["identity_ok"] is not True:
+        raise ValueError("Final SELECT or authenticated identity did not match")
+    ids = rows[0]["video_ids"]
+    return json.loads(ids) if isinstance(ids, str) else ids
+
+
+def dry_run_instructor(project_dir: Path) -> None:
+    rows = query(project_dir, "BEGIN READ ONLY; SELECT user_id::text AS user_id "
+                 "FROM elite.enrollments WHERE class_role='instructor' AND status='active' "
+                 "ORDER BY user_id LIMIT 1; ROLLBACK;")
+    if len(rows) != 1:
+        raise ValueError("No active instructor available for dry run")
+    ids = visible_ids(project_dir, rows[0]["user_id"])
+    if len(ids) != 10:
+        raise ValueError(f"Instructor expected 10 videos, found {len(ids)}")
+    print("Instructor read-only dry run: final SELECT returned 10 video IDs")
+
+
 def capture(project_dir: Path, out: Path, phase: str) -> None:
-    ref = (project_dir / "supabase/.temp/project-ref").read_text().strip()
-    if ref != PROJECT_REF:
-        raise ValueError("Linked project is not the QBC production project")
     if phase == "before":
         rows = query(project_dir, "BEGIN READ ONLY; SELECT user_id::text AS user_id "
-                     "FROM elite.enrollments WHERE class_role='student' AND cohort='2026-1' "
+                     "FROM elite.enrollments WHERE class_role='student' AND cohort='2026-1' AND status='active' "
                      "ORDER BY user_id; ROLLBACK;")
         users = [row["user_id"] for row in rows]
         if len(users) != 11:
@@ -46,22 +72,7 @@ def capture(project_dir: Path, out: Path, phase: str) -> None:
     phase_dir = out / phase
     phase_dir.mkdir(mode=0o700, exist_ok=False)
     for index, uid in enumerate(users, start=1):
-        if not isinstance(uid, str) or len(uid) != 36:
-            raise ValueError("Invalid private manifest")
-        claims = json.dumps({"sub": uid, "role": "authenticated"}, separators=(",", ":"))
-        sql = ("BEGIN READ ONLY; SET LOCAL ROLE authenticated; "
-               f"SELECT set_config('request.jwt.claims','{claims}',true), "
-               f"set_config('request.jwt.claim.sub','{uid}',true); "
-               f"SELECT auth.uid()='{uid}'::uuid AS identity_ok, "
-               "coalesce(jsonb_agg(id::text ORDER BY id), '[]'::jsonb) AS video_ids "
-               "FROM elite.course_videos; ROLLBACK;")
-        rows = query(project_dir, sql)
-        if len(rows) != 1 or rows[0]["identity_ok"] is not True:
-            raise ValueError(f"Identity failed for student #{index}")
-        ids = rows[0]["video_ids"]
-        if isinstance(ids, str):
-            ids = json.loads(ids)
-        write_private(phase_dir / f"student_{index:02}.json", ids)
+        write_private(phase_dir / f"student_{index:02}.json", visible_ids(project_dir, uid))
         print(f"{phase}: student {index:02}/{len(users)} captured")
 
 
@@ -81,10 +92,14 @@ def compare(out: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=("before", "after", "compare"))
+    parser.add_argument("phase", choices=("dry-run-instructor", "before", "after", "compare"))
     parser.add_argument("--project-dir", type=Path, default=Path.home() / "QBC-Hope")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
+    if args.phase != "compare":
+        ref = (args.project_dir / "supabase/.temp/project-ref").read_text().strip()
+        if ref != PROJECT_REF:
+            raise ValueError("Linked project is not the QBC production project")
     out = args.out.resolve()
     if out == REPO or REPO in out.parents:
         raise ValueError("Private snapshots must be outside this repository")
@@ -92,6 +107,9 @@ def main() -> int:
     os.chmod(out, 0o700)
     if args.phase == "compare":
         return compare(out)
+    if args.phase == "dry-run-instructor":
+        dry_run_instructor(args.project_dir.resolve())
+        return 0
     capture(args.project_dir.resolve(), out, args.phase)
     return 0
 

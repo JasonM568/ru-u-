@@ -91,9 +91,18 @@ await save([],false,[],false);
 assert.ok(!(await ids(second)).has(id),"AC6 unpublish immediate");
 
 const secondPre=await call(instructor,"video_create",{p_title:"AC category",p_url:"https://vimeo.com/123456789",p_category:"pre",p_note:""});
+const untouchedDraft=await call(instructor,"video_create",{p_title:"AC category draft",p_url:"https://vimeo.com/123456789",p_category:"pre",p_note:""});
+await save(["2026-1"],false,[]);
+await call(instructor,"video_set_audiences",{
+  p_video_id:secondPre,p_cohorts:["2026-1"],p_all:false,p_users:[],p_publish:true});
 await call(instructor,"video_apply_category",{
   p_source_id:id,p_cohorts:["2026-2"],p_all:false,p_users:[],p_publish:true});
 assert.ok((await ids(second)).has(id) && (await ids(second)).has(secondPre),"AC7 same category overwritten");
+assert.ok(!(await ids(second)).has(untouchedDraft),"AC7 draft remains hidden");
+const {data:draftAfterBulk,error:draftError}=await instructor.schema("elite").from("course_videos")
+  .select("published_at").eq("id",untouchedDraft).single();
+assert.ifError(draftError);
+assert.equal(draftAfterBulk.published_at,null,"AC7 draft remains unpublished");
 assert.deepEqual(await ids(first),baseline,"AC7 other category untouched");
 
 const {error:directInsert}=await instructor.schema("elite").from("video_audiences")
@@ -108,5 +117,6 @@ assert.equal(studentAudiences.length,0,"Audience rows hidden from students");
 
 await call(instructor,"video_delete",{p_video_id:id});
 await call(instructor,"video_delete",{p_video_id:secondPre});
+await call(instructor,"video_delete",{p_video_id:untouchedDraft});
 assert.deepEqual(await ids(first),baseline,"AC12 set restored after exercise");
 console.log("AC1/2/3/4/5/6/7/8/12 and ACL/RPC integration checks passed on local Supabase");

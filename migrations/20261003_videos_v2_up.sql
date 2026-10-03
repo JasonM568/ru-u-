@@ -1,5 +1,6 @@
 -- Videos v2. Apply only after the runbook preflight and with video writes frozen.
 begin;
+lock table elite.course_videos in access exclusive mode;
 
 create schema elite_videos_v2_backup;
 revoke all on schema elite_videos_v2_backup from public, anon, authenticated;
@@ -125,7 +126,8 @@ begin
   if not (elite.is_enrolled() and elite.is_instructor()) then raise exception 'active instructor required'; end if;
   select category into v_category from elite.course_videos where id=p_source_id;
   if not found then raise exception 'source video not found'; end if;
-  for v_id in select id from elite.course_videos where category=v_category order by id loop
+  for v_id in select id from elite.course_videos
+    where category=v_category and published_at is not null order by id loop
     perform elite.video_set_audiences(v_id,p_cohorts,p_all,p_users,p_publish);
     v_count := v_count + 1;
   end loop;

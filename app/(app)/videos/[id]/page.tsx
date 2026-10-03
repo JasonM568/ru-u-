@@ -42,15 +42,16 @@ export default async function VideoPage({ params }: { params: Promise<{id:string
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
       <main className="min-w-0">
         <div className="aspect-video overflow-hidden rounded-xl border border-slate-300 bg-black">
-          {status === "ready" && embed ? <iframe title={video.title} src={embed}
+          {status !== "private" && embed ? <iframe title={video.title} src={embed}
             className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
             : <div className="flex h-full items-center justify-center p-5 text-center text-sm text-slate-800" role="status">
               {status === "private" ? instructor
                 ? "這支在 YouTube 是私人影片，請改成「不公開」才能播放"
                 : "影片尚未開放"
-                : "影片處理中，請稍後再試"}
+                : "影片網址無法辨識，請聯絡講師"}
             </div>}
         </div>
+        <p className="mt-2 text-xs text-slate-500">若影片無法播放，可能仍在 YouTube 處理中，請稍後再試。</p>
         <div className="mt-5 flex flex-wrap items-center gap-2"><span className="text-sm text-amber-700">{categoryName(video.category)}</span>
           {instructor && !video.published_at && <Badge tone="amber">草稿 · 僅講師可見</Badge>}
         </div>

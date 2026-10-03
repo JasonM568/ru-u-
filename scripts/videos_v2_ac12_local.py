@@ -6,7 +6,10 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = {**os.environ, "PGPASSWORD": "postgres"}
-BASE = ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1", "-p", "55433", "-U", "postgres"]
+PORT = os.environ.get("VIDEOS_V2_LOCAL_PG_PORT", "55433")
+if PORT not in ("55433", "54422"):
+    raise ValueError("AC12 rehearsal is restricted to known local PostgreSQL ports")
+BASE = ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1", "-p", PORT, "-U", "postgres"]
 
 
 def run(db: str, *args: str) -> str:
