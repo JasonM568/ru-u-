@@ -1,11 +1,14 @@
 import { MATERIAL_CATEGORIES } from "@/lib/constants";
 
 export type Video = {
-  id: string; title: string; url: string; category: string; note: string | null;
+  id: string; course_id: string; title: string; url: string; category: string; note: string | null;
   created_at: string; published_at: string | null;
 };
-export type VideoAudience = {
-  video_id: string; kind: "cohort" | "user" | "all";
+export type VideoCourse = {
+  id: string; title: string; note: string | null; created_at: string;
+};
+export type CourseGrant = {
+  course_id: string; kind: "cohort" | "user";
   cohort_code: string | null; target_user_id: string | null;
 };
 export type RosterMember = {
