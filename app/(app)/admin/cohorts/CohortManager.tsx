@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Card, Field, Input } from "@/components/ui";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createCohort, switchCurrentCohort } from "../actions";
 
@@ -8,6 +10,7 @@ type Cohort = { code: string; display_name: string; started_on: string | null; i
 
 export function CohortManager({ cohorts }: { cohorts: Cohort[] }) {
   const current = cohorts.find((c) => c.is_current);
+  const [pendingCohort, setPendingCohort] = useState<Cohort | null>(null);
   return (
     <div className="space-y-5">
       <Card>
@@ -18,17 +21,21 @@ export function CohortManager({ cohorts }: { cohorts: Cohort[] }) {
             <div key={c.code} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
               <span className="text-sm text-slate-800">{c.display_name}（{c.code}）{c.started_on ? `・${c.started_on}` : ""}{c.is_current ? "・當期" : ""}</span>
               {!c.is_current && (
-                <form action={switchCurrentCohort} onSubmit={(event) => {
-                  if (!window.confirm(`切換當期為「${c.display_name}」？之後新加入名冊的成員會落在這一期。`)) event.preventDefault();
-                }}>
-                  <input type="hidden" name="code" value={c.code} />
-                  <SubmitButton variant="ghost">設為當期</SubmitButton>
-                </form>
+                <button type="button" onClick={() => setPendingCohort(c)} className="btn-ghost rounded-lg px-4 py-2 text-sm">設為當期</button>
               )}
             </div>
           ))}
         </div>
       </Card>
+      {pendingCohort && (
+        <ConfirmDialog title={`切換當期為「${pendingCohort.display_name}」？`} onCancel={() => setPendingCohort(null)}
+          confirm={<form action={switchCurrentCohort}>
+            <input type="hidden" name="code" value={pendingCohort.code} />
+            <SubmitButton>確認切換</SubmitButton>
+          </form>}>
+          之後新加入名冊的成員會落在 {pendingCohort.display_name}。已有成員與內容不會自動改期別。
+        </ConfirmDialog>
+      )}
       <Card>
         <h2 className="mb-3 font-semibold text-slate-800">新增期別</h2>
         <form action={createCohort} className="grid gap-3 sm:grid-cols-3">

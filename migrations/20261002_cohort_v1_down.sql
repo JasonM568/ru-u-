@@ -31,13 +31,13 @@ end $$;
 do $$ declare p record; ddl text; t record;
 begin
   for t in select tablename from pg_tables where schemaname = 'elite' and tablename <> 'cohorts' loop
-    execute format('drop policy cohort_v1_active_gate on elite.%I', t.tablename);
+    execute format('drop policy if exists cohort_v1_active_gate on elite.%I', t.tablename);
   end loop;
   for p in select * from elite_cohort_v1_backup.policies
            where tablename in ('course_materials','flow_configs','team_meetings','trade_ledger','reviews')
               or (tablename = 'course_videos' and policyname = 'elite_videos_select')
   loop
-    execute format('drop policy %I on elite.%I', p.policyname, p.tablename);
+    execute format('drop policy if exists %I on elite.%I', p.policyname, p.tablename);
     ddl := format('create policy %I on elite.%I as %s for %s to %s',
       p.policyname, p.tablename, p.permissive, p.cmd,
       (select string_agg(quote_ident(r), ', ') from unnest(p.roles) r));
@@ -47,9 +47,9 @@ begin
   end loop;
 end $$;
 
-drop policy cohorts_read on elite.cohorts;
-drop policy cohorts_insert on elite.cohorts;
-drop policy cohorts_update on elite.cohorts;
+drop policy if exists cohorts_read on elite.cohorts;
+drop policy if exists cohorts_insert on elite.cohorts;
+drop policy if exists cohorts_update on elite.cohorts;
 alter table elite.enrollments alter column cohort drop default;
 do $$ declare t text;
 begin

@@ -31,7 +31,7 @@ end $$;
 alter policy elite_materials_storage_select on storage.objects using (
   bucket_id = 'elite-materials'
   and (
-    elite.is_instructor()
+    (elite.is_instructor() and elite.is_enrolled())
     or exists (
       select 1 from elite.course_materials m
       where m.storage_path = storage.objects.name

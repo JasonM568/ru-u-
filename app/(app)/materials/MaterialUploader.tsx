@@ -20,7 +20,7 @@ type PendingUpload = {
   title: string;
   mime: string;
   ext: string;
-  allCohorts: boolean;
+  targetCohort: string;
 };
 
 type DuplicateInfo = {
@@ -28,7 +28,10 @@ type DuplicateInfo = {
   created_at: string;
 };
 
-export function MaterialUploader() {
+export function MaterialUploader({ cohorts, currentCohort }: {
+  cohorts: { code: string; display_name: string }[];
+  currentCohort: string;
+}) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, setPending] = useState(false);
@@ -59,7 +62,7 @@ export function MaterialUploader() {
         originalName: u.file.name,
         mimeType: u.mime,
         sizeBytes: u.file.size,
-        allCohorts: u.allCohorts,
+        targetCohort: u.targetCohort,
       });
       if (!result.ok) {
         setError(`儲存失敗：${result.error}`);
@@ -84,7 +87,7 @@ export function MaterialUploader() {
     const file = fd.get("file") as File | null;
     const category = String(fd.get("category") ?? "");
     const title = String(fd.get("title") ?? "").trim();
-    const allCohorts = fd.get("all_cohorts") === "on";
+    const targetCohort = String(fd.get("target_cohort") ?? "");
 
     if (!file || file.size === 0) return setError("請選擇檔案");
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -108,7 +111,7 @@ export function MaterialUploader() {
 
       if (existing) {
         setDuplicate({
-          upload: { file, category, title, mime, ext, allCohorts },
+          upload: { file, category, title, mime, ext, targetCohort },
           existing: existing as DuplicateInfo,
         });
         return;
@@ -117,7 +120,7 @@ export function MaterialUploader() {
       setPending(false);
     }
 
-    await doUpload({ file, category, title, mime, ext, allCohorts });
+    await doUpload({ file, category, title, mime, ext, targetCohort });
   }
 
   return (
@@ -185,10 +188,12 @@ export function MaterialUploader() {
         <Field label="標題" hint="留空則使用原始檔名">
           <Input type="text" name="title" placeholder="例：Day 1 講義" />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="all_cohorts" className="size-4" />
-          多期通用（所有期別學員可下載）
-        </label>
+        <Field label="目標期別" required>
+          <Select name="target_cohort" defaultValue={currentCohort} required>
+            {cohorts.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
+            <option value="__all__">多期通用（所有期別）</option>
+          </Select>
+        </Field>
         <div className="flex items-end">
           <button type="submit" disabled={pending} className="btn-gold w-full rounded-lg px-4 py-2 text-sm font-semibold sm:w-auto">
             {pending ? "處理中…" : "上傳"}

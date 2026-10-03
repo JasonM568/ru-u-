@@ -54,6 +54,9 @@ create table elite.cohorts (
   is_current boolean not null default false,
   created_at timestamptz not null default now()
 );
+-- Production has elite-schema default ACL granting authenticated whole-table
+-- arwd; remove it before granting only the columns this UI needs.
+revoke all on elite.cohorts from public, anon, authenticated;
 create unique index cohorts_one_current on elite.cohorts (is_current) where is_current;
 insert into elite.cohorts(code, display_name, is_current)
 values ('2026-1', '2026 第 1 期', true);
@@ -106,8 +109,16 @@ create policy cohorts_update on elite.cohorts for update to authenticated
 using (elite.is_enrolled() and elite.is_instructor()) with check (elite.is_enrolled() and elite.is_instructor());
 grant select, insert (code, display_name, started_on) on elite.cohorts to authenticated;
 grant update (display_name, started_on) on elite.cohorts to authenticated;
+revoke execute on function elite.current_cohort(), elite.my_cohort(), elite.my_enrollment_status(), elite.set_current_cohort(text) from public, anon, authenticated;
 grant execute on function elite.current_cohort(), elite.my_cohort(), elite.my_enrollment_status(), elite.set_current_cohort(text) to authenticated;
-revoke execute on function elite.current_cohort(), elite.my_cohort(), elite.my_enrollment_status(), elite.set_current_cohort(text) from public;
+
+do $$ begin
+  if has_table_privilege('authenticated', 'elite.cohorts', 'DELETE')
+     or has_column_privilege('authenticated', 'elite.cohorts', 'is_current', 'UPDATE')
+     or has_table_privilege('anon', 'elite.cohorts', 'SELECT') then
+    raise exception 'cohorts permissions are broader than intended';
+  end if;
+end $$;
 
 -- New roster inserts inherit the current term; explicit instructor edits remain possible.
 alter table elite.enrollments alter column cohort set default elite.current_cohort();

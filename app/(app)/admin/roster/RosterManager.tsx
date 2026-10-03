@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, Field, Select, Badge } from "@/components/ui";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SubmitButton } from "@/components/SubmitButton";
 import { JOB_ROLES, TEAMS } from "@/lib/constants";
 import { upsertEnrollment, removeEnrollment, setEnrollmentStatus } from "../actions";
@@ -80,6 +81,7 @@ export function RosterManager({
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Profile | null>(null);
   const [cohortFilter, setCohortFilter] = useState("all");
+  const [pendingStatus, setPendingStatus] = useState<Enrollment | null>(null);
   const current = cohorts.find((c) => c.is_current);
   const filtered = cohortFilter === "all" ? enrollments : enrollments.filter((e) => e.cohort === cohortFilter);
 
@@ -209,14 +211,9 @@ export function RosterManager({
                 <SubmitButton variant="ghost">儲存</SubmitButton>
               </form>
               {e.class_role === "student" && (
-                <form action={setEnrollmentStatus} className="mt-2" onSubmit={(event) => {
-                  const verb = e.status === "active" ? "停權" : "復權";
-                  if (!window.confirm(`${verb}「${e.display_name ?? "這位學員"}」？${e.status === "active" ? "學員將立即無法使用系統，但紀錄保留。" : "學員將恢復原本的觀看與填寫權限。"}`)) event.preventDefault();
-                }}>
-                  <input type="hidden" name="user_id" value={e.user_id} />
-                  <input type="hidden" name="status" value={e.status === "active" ? "suspended" : "active"} />
-                  <button type="submit" className="text-xs text-amber-500 hover:underline">{e.status === "active" ? "停權" : "復權"}</button>
-                </form>
+                <button type="button" onClick={() => setPendingStatus(e)} className="mt-2 text-xs text-amber-500 hover:underline">
+                  {e.status === "active" ? "停權" : "復權"}
+                </button>
               )}
               <form action={removeEnrollment} className="mt-2">
                 <input type="hidden" name="user_id" value={e.user_id} />
@@ -231,6 +228,19 @@ export function RosterManager({
           ))}
         </div>
       </Card>
+      {pendingStatus && (
+        <ConfirmDialog title={`${pendingStatus.status === "active" ? "停權" : "復權"}「${pendingStatus.display_name ?? "這位學員"}」？`}
+          onCancel={() => setPendingStatus(null)}
+          confirm={<form action={setEnrollmentStatus}>
+            <input type="hidden" name="user_id" value={pendingStatus.user_id} />
+            <input type="hidden" name="status" value={pendingStatus.status === "active" ? "suspended" : "active"} />
+            <SubmitButton>{pendingStatus.status === "active" ? "確認停權" : "確認復權"}</SubmitButton>
+          </form>}>
+          {pendingStatus.status === "active"
+            ? "學員將無法登入使用系統，既有作答與團隊紀錄會保留。復權後可恢復使用。"
+            : "學員將恢復原本的觀看與填寫權限。"}
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

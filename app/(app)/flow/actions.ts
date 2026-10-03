@@ -160,11 +160,12 @@ export async function publishFlowConfig(payload: {
   title: string;
   note: string;
   config: string;
+  cohort: string;
 }): Promise<ActionResult> {
   const { supabase, userId } = await requireInstructor();
-  const { data: currentCohort, error: cohortError } = await supabase
-    .schema("elite").from("cohorts").select("code").eq("is_current", true).single();
-  if (cohortError || !currentCohort) return { ok: false, error: "找不到當期期別" };
+  const { data: targetCohort, error: cohortError } = await supabase
+    .schema("elite").from("cohorts").select("code").eq("code", payload.cohort).maybeSingle();
+  if (cohortError || !targetCohort) return { ok: false, error: "目標期別不正確" };
 
   let parsed: unknown;
   try {
@@ -181,7 +182,7 @@ export async function publishFlowConfig(payload: {
     .from("flow_configs")
     .upsert(
       {
-        cohort: currentCohort.code,
+        cohort: targetCohort.code,
         group_id: cfg.group,
         title: payload.title.trim().slice(0, 100),
         note: payload.note.trim().slice(0, 2000),

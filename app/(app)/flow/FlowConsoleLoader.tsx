@@ -19,14 +19,16 @@ export function FlowConsoleLoader({
   userId,
   isInstructor,
   targetCohort,
+  cohorts,
   configs,
   runs,
 }: {
   userId: string;
   isInstructor: boolean;
   targetCohort: string;
+  cohorts: { code: string; display_name: string }[];
   configs: PublishedConfig[];
   runs: RunSummary[];
 }) {
-  return <FlowConsole userId={userId} isInstructor={isInstructor} targetCohort={targetCohort} configs={configs} initialRuns={runs} />;
+  return <FlowConsole userId={userId} isInstructor={isInstructor} targetCohort={targetCohort} cohorts={cohorts} configs={configs} initialRuns={runs} />;
 }

@@ -33,6 +33,7 @@ export function RosterEditor({
   configs,
   isInstructor,
   targetCohort,
+  cohorts,
 }: {
   state: FlowState;
   update: (fn: (draft: FlowState) => void) => void;
@@ -40,6 +41,7 @@ export function RosterEditor({
   configs: PublishedConfig[];
   isInstructor: boolean;
   targetCohort: string;
+  cohorts: { code: string; display_name: string }[];
 }) {
   const rg = resolveGroup(state);
   const group = { id: rg.id, name: rg.name };
@@ -147,6 +149,7 @@ export function RosterEditor({
         configs={configs}
         isInstructor={isInstructor}
         targetCohort={targetCohort}
+        cohorts={cohorts}
         state={state}
         update={update}
         notify={notify}

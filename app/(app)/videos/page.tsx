@@ -22,6 +22,7 @@ type Video = {
   note: string | null;
   created_at: string;
   all_cohorts: boolean;
+  cohort: string;
 };
 
 export default async function VideosPage({
@@ -39,6 +40,9 @@ export default async function VideosPage({
     .select("*")
     .order("created_at", { ascending: true });
   const videos = (data ?? []) as Video[];
+  const { data: cohorts } = isInstructor
+    ? await supabase.schema("elite").from("cohorts").select("code, display_name, is_current").order("code")
+    : { data: null };
 
   // 依固定分類順序分組；不在清單內的舊分類歸到「其他」
   const knownKeys = MATERIAL_CATEGORIES.map((c) => c.key as string);
@@ -114,10 +118,12 @@ export default async function VideosPage({
               <Field label="說明（選填）">
                 <Textarea name="note" placeholder="這支影片的重點、建議觀看的段落…" />
               </Field>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" name="all_cohorts" className="size-4" />
-                多期通用（所有期別學員可看）
-              </label>
+              <Field label="目標期別" required>
+                <Select name="target_cohort" defaultValue={cohorts?.find((c) => c.is_current)?.code ?? ""} required>
+                  {cohorts?.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
+                  <option value="__all__">多期通用（所有期別）</option>
+                </Select>
+              </Field>
               <SubmitButton>新增影片</SubmitButton>
             </form>
           </details>
@@ -166,6 +172,7 @@ export default async function VideosPage({
                           <div className="min-w-0">
                             <p className="font-medium text-slate-800">{v.title}</p>
                             {v.all_cohorts && <Badge tone="green">多期通用</Badge>}
+                            {isInstructor && <Badge tone="amber">{v.cohort}</Badge>}
                             {v.note && (
                               <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
                                 {v.note}

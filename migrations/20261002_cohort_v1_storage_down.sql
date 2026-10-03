@@ -26,6 +26,12 @@ begin
      or exists (select 1 from elite.reviews where cohort <> '2026-1') then
     raise exception 'Second-term or suspended data exists: restoring broad Storage access is unsafe';
   end if;
+  if exists (select 1 from elite.enrollments e left join elite_cohort_v1_backup.enrollments b using (user_id)
+             where b.user_id is null)
+     or exists (select 1 from elite_cohort_v1_backup.enrollments b left join elite.enrollments e using (user_id)
+                where e.user_id is null) then
+    raise exception 'Roster membership changed; Storage rollback unsafe';
+  end if;
 end $$;
 alter policy elite_materials_storage_select on storage.objects
   using ((bucket_id = 'elite-materials'::text) and elite.is_enrolled());
