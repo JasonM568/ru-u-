@@ -57,7 +57,7 @@ const {data:directCourse,error:directError}=await second.schema("elite").from("v
 assert.ifError(directError); assert.equal(directCourse,null,"AC1 direct course ID hidden");
 const {error:studentCreate}=await first.schema("elite").rpc("video_course_create",{
   p_title:"Forbidden student course",p_note:""});
-assert.ok(studentCreate,"Student cannot call instructor course-create RPC");
+assert.match(studentCreate?.message ?? "",/active instructor required/,"Student cannot call instructor course-create RPC");
 const {error:studentDirectCourse}=await first.schema("elite").from("video_courses")
   .insert({title:"Forbidden direct course"});
 assert.ok(studentDirectCourse,"Student cannot directly insert video_courses");
@@ -72,7 +72,7 @@ const draft=await rpc(instructor,"course_video_create",{
   p_course_id:empty,p_title:"Synthetic draft",p_url:"https://vimeo.com/123456789",p_category:"day2",p_note:""});
 const {error:studentPublish}=await first.schema("elite").rpc("course_video_publish",{
   p_video_id:draft,p_publish:true});
-assert.ok(studentPublish,"Student cannot call instructor publish RPC");
+assert.match(studentPublish?.message ?? "",/active instructor required/,"Student cannot call instructor publish RPC");
 assert.ok((await ids(instructor,"course_videos")).has(draft),"AC3 instructor sees draft");
 assert.ok(!(await ids(first,"course_videos")).has(draft),"AC3 student cannot see draft");
 assert.ok(!(await ids(first,"video_courses")).has(empty),"AC8 course with only drafts hidden");

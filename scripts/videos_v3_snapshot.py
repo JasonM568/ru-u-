@@ -84,12 +84,15 @@ def capture(project_dir: Path, out: Path, phase: str) -> None:
 
 def compare(out: Path) -> int:
     diffs = 0
+    expected_course_ids = None
     for index in range(1, 12):
         name = f"student_{index:02}.json"
         before = json.loads((out / "before" / name).read_text())
         after = json.loads((out / "after" / name).read_text())
+        if expected_course_ids is None:
+            expected_course_ids = after["course_ids"]
         if before["video_ids"] != after["video_ids"] or len(before["video_ids"]) != 10 \
-                or len(after["course_ids"]) != 1:
+                or len(after["course_ids"]) != 1 or after["course_ids"] != expected_course_ids:
             diffs += 1
             print(f"student {index:02}: {len(before['video_ids'])} before / "
                   f"{len(after['video_ids'])} after; courses={len(after['course_ids'])}; "

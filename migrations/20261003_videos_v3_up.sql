@@ -260,6 +260,13 @@ do $$ begin
      or (select count(*) from elite.course_grants where kind='cohort' and cohort_code='2026-1'
           and course_id=(select id from elite.video_courses)) <> 1
      or (select count(*) from elite.course_grants) <> 1
+     or (select count(*) from pg_policies where schemaname='elite'
+         and tablename='course_videos') <> 2
+     or (select count(*) from pg_policies where schemaname='elite'
+         and tablename='course_videos' and (
+           (policyname='elite_videos_select' and cmd='SELECT' and permissive='PERMISSIVE') or
+           (policyname='cohort_v1_active_gate' and permissive='RESTRICTIVE')
+         )) <> 2
      or has_table_privilege('authenticated','elite.video_courses','INSERT')
      or has_table_privilege('authenticated','elite.video_courses','UPDATE')
      or has_table_privilege('authenticated','elite.video_courses','DELETE')
