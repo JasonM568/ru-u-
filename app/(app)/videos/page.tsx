@@ -1,208 +1,52 @@
+import Link from "next/link";
 import { requireEnrollment } from "@/lib/auth";
-import { MATERIAL_CATEGORIES } from "@/lib/constants";
-import {
-  Card,
-  PageHeader,
-  EmptyState,
-  Field,
-  Input,
-  Textarea,
-  Select,
-  Badge,
-} from "@/components/ui";
-import { SubmitButton } from "@/components/SubmitButton";
-import { videoEmbedUrl } from "@/lib/video";
-import { createVideo, deleteVideo } from "./actions";
+import { Card, EmptyState, PageHeader, Badge } from "@/components/ui";
+import { videoGroups, orderedVideos, type Video, type VideoAudience, type RosterMember } from "@/lib/video-course";
+import { VideoAdmin } from "./VideoAdmin";
 
-type Video = {
-  id: string;
-  category: string;
-  title: string;
-  url: string;
-  note: string | null;
-  created_at: string;
-  all_cohorts: boolean;
-  cohort: string;
-};
-
-export default async function VideosPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ saved?: string; deleted?: string; error?: string }>;
-}) {
+export default async function VideosPage() {
   const { supabase, enrollment } = await requireEnrollment();
-  const sp = await searchParams;
-  const isInstructor = enrollment.class_role === "instructor";
-
-  const { data } = await supabase
-    .schema("elite")
-    .from("course_videos")
-    .select("*")
+  const instructor = enrollment.class_role === "instructor";
+  const { data, error } = await supabase.schema("elite").from("course_videos")
+    .select("id,title,url,category,note,created_at,published_at")
     .order("created_at", { ascending: true });
-  const videos = (data ?? []) as Video[];
-  const { data: cohorts } = isInstructor
-    ? await supabase.schema("elite").from("cohorts").select("code, display_name, is_current").order("code")
-    : { data: null };
-
-  // 依固定分類順序分組；不在清單內的舊分類歸到「其他」
-  const knownKeys = MATERIAL_CATEGORIES.map((c) => c.key as string);
-  const groups: { key: string; name: string; items: Video[] }[] =
-    MATERIAL_CATEGORIES.map((c) => ({
-      key: c.key,
-      name: c.name,
-      items: videos.filter((v) => v.category === c.key),
-    }));
-  const others = videos.filter((v) => !knownKeys.includes(v.category));
-  if (others.length > 0) groups.push({ key: "other", name: "其他", items: others });
-
-  return (
-    <div>
-      <PageHeader
-        title="課程影片"
-        subtitle={
-          isInstructor
-            ? "貼上 YouTube / Vimeo 連結，依目標期別開放觀看。"
-            : "講師提供的課程影片，點播放即可觀看。"
-        }
-      />
-
-      {sp.saved && (
-        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          影片已新增。
-        </div>
-      )}
-      {sp.deleted && (
-        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          影片已移除。
-        </div>
-      )}
-      {sp.error && (
-        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          操作失敗：{sp.error}
-        </div>
-      )}
-
-      {isInstructor && (
-        <Card className="mb-6">
-          <details>
-            <summary className="cursor-pointer text-sm font-semibold text-indigo-600">
-              ＋ 新增課程影片
-            </summary>
-            <form action={createVideo} className="mt-4 space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="影片標題" required>
-                  <Input name="title" required placeholder="如 Day 1 上午：總經框架" />
-                </Field>
-                <Field label="分類" required>
-                  <Select name="category" defaultValue="extra">
-                    {MATERIAL_CATEGORIES.map((c) => (
-                      <option key={c.key} value={c.key}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
+  const videos = orderedVideos((data ?? []) as Video[]);
+  const [audienceResult, cohortResult, rosterResult] = instructor ? await Promise.all([
+    supabase.schema("elite").from("video_audiences").select("video_id,kind,cohort_code,target_user_id"),
+    supabase.schema("elite").from("cohorts").select("code,display_name").order("code"),
+    supabase.schema("elite").from("enrollments").select("user_id,display_name,cohort,team_id,class_role,status")
+      .order("display_name"),
+  ]) : [{data:[]},{data:[]},{data:[]}];
+  return <div>
+    <PageHeader title="課程影片" subtitle={instructor
+      ? "依章節管理影片；草稿先試播，再選擇對象開通。"
+      : "依課程順序觀看，點選一堂即可進入播放頁。"} />
+    {instructor && <VideoAdmin videos={videos}
+      audiences={(audienceResult.data ?? []) as VideoAudience[]}
+      cohorts={(cohortResult.data ?? []) as {code:string;display_name:string}[]}
+      roster={(rosterResult.data ?? []) as RosterMember[]} />}
+    {error ? <EmptyState>暫時無法取得影片，請稍後重試。</EmptyState>
+      : videos.length === 0 ? <EmptyState>目前沒有可觀看的課程影片。</EmptyState>
+        : <div className="space-y-7">{videoGroups(videos).map((group) => <section key={group.key}>
+          <div className="mb-3 border-l-2 border-[color:var(--gold)] pl-3">
+            <h2 className="font-display text-lg font-semibold text-slate-800">{group.name}</h2>
+            <p className="text-xs text-slate-400">{group.videos.length} 堂</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">{group.videos.map((video,index) => <Link
+            key={video.id} href={`/videos/${video.id}`} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-amber-600">
+            <Card className="h-full transition hover:border-amber-700">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 gap-3"><span className="mt-0.5 font-display text-lg text-amber-700">{String(index+1).padStart(2,"0")}</span>
+                  <div><h3 className="font-semibold text-slate-800">{video.title}</h3>
+                    {video.note && <p className="mt-1 line-clamp-2 text-sm text-slate-400">{video.note}</p>}
+                  </div></div>
+                {instructor && !video.published_at && <Badge tone="amber">草稿</Badge>}
               </div>
-              <Field
-                label="影片網址"
-                hint="支援 YouTube（含未列出）與 Vimeo 連結"
-                required
-              >
-                <Input
-                  name="url"
-                  type="url"
-                  required
-                  placeholder="https://youtu.be/…"
-                />
-              </Field>
-              <Field label="說明（選填）">
-                <Textarea name="note" placeholder="這支影片的重點、建議觀看的段落…" />
-              </Field>
-              <Field label="目標期別" required>
-                <Select name="target_cohort" defaultValue="" required>
-                  <option value="" disabled>請選擇目標期別</option>
-                  {cohorts?.map((c) => <option key={c.code} value={c.code}>{c.display_name}</option>)}
-                  <option value="__all__">多期通用（所有期別）</option>
-                </Select>
-              </Field>
-              <SubmitButton>新增影片</SubmitButton>
-            </form>
-          </details>
-        </Card>
-      )}
-
-      {videos.length === 0 ? (
-        <EmptyState>尚無課程影片。</EmptyState>
-      ) : (
-        <div className="space-y-8">
-          {groups
-            .filter((g) => g.items.length > 0)
-            .map((g) => (
-              <section key={g.key}>
-                <div className="mb-3 border-l-2 border-[color:var(--gold)] pl-3">
-                  <h2 className="font-display text-base font-semibold text-slate-800">
-                    {g.name}
-                  </h2>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {g.items.map((v) => {
-                    const embed = videoEmbedUrl(v.url);
-                    return (
-                      <Card key={v.id}>
-                        {embed ? (
-                          <div className="aspect-video overflow-hidden rounded-lg bg-black">
-                            <iframe
-                              src={embed}
-                              title={v.title}
-                              className="h-full w-full"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                              allowFullScreen
-                            />
-                          </div>
-                        ) : (
-                          <a
-                            href={v.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block rounded-lg bg-slate-50 p-4 text-sm text-slate-700 underline-offset-2 hover:underline"
-                          >
-                            ▶ 開啟影片連結
-                          </a>
-                        )}
-                        <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-medium text-slate-800">{v.title}</p>
-                            {v.all_cohorts && <Badge tone="green">多期通用</Badge>}
-                            {isInstructor && <Badge tone="amber">{v.cohort}</Badge>}
-                            {v.note && (
-                              <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
-                                {v.note}
-                              </p>
-                            )}
-                            <p className="mt-1 text-xs text-slate-400">
-                              {new Date(v.created_at).toLocaleDateString("zh-TW")}
-                            </p>
-                          </div>
-                          {isInstructor && (
-                            <form action={deleteVideo}>
-                              <input type="hidden" name="id" value={v.id} />
-                              <button
-                                type="submit"
-                                className="rounded-md border border-rose-700/40 px-2.5 py-1 text-xs text-rose-600 transition hover:bg-rose-50"
-                              >
-                                移除
-                              </button>
-                            </form>
-                          )}
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-        </div>
-      )}
-    </div>
-  );
+              <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+                <span>{new Date(video.created_at).toLocaleDateString("zh-TW")}</span><span>觀看課程 →</span>
+              </div>
+            </Card>
+          </Link>)}</div>
+        </section>)}</div>}
+  </div>;
 }
