@@ -123,6 +123,9 @@ create policy video_courses_select on elite.video_courses for select to authenti
     ))));
 
 drop policy elite_videos_select on elite.course_videos;
+drop policy if exists elite_videos_insert on elite.course_videos;
+drop policy if exists elite_videos_update on elite.course_videos;
+drop policy if exists elite_videos_delete on elite.course_videos;
 create policy elite_videos_select on elite.course_videos for select to authenticated
   using (elite.is_enrolled() and (elite.is_instructor() or
     (published_at is not null and elite.course_grant_matches(course_id))));
@@ -207,6 +210,7 @@ create function elite.course_video_publish(p_video_id uuid,p_publish boolean) re
 language plpgsql security definer set search_path=''
 as $$ begin
   if not (elite.is_enrolled() and elite.is_instructor()) then raise exception 'active instructor required'; end if;
+  if p_publish is null then raise exception 'publish flag required'; end if;
   update elite.course_videos set published_at=case when p_publish then coalesce(published_at,now()) else null end
     where id=p_video_id;
   if not found then raise exception 'video not found'; end if;

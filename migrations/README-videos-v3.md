@@ -38,6 +38,8 @@ elite.is_enrolled() AND (
 
 `video_courses`、`course_grants` 各自有 restrictive `cohort_v1_active_gate`，使用 `elite.is_enrolled()`；既有 `course_videos` gate 繼續有效。`course_grants` 只讓 active 講師 SELECT。正式 `elite` default ACL 會給 authenticated `arwd`，故新表建立後立即 REVOKE ALL，再明確授 SELECT；既有影片表也撤直接寫入。所有寫入只由驗證 active 講師的 SECURITY DEFINER RPC 執行。
 
+Up 同時移除 `course_videos` 上 v1 殘留的 `elite_videos_insert`／`elite_videos_update`／`elite_videos_delete` 寫入政策。雖然目前 SELECT-only ACL 使其無作用，保留它們會讓日後誤授寫權時繞過講師 RPC。Down 不還原這些舊寫入政策：v2 本來就只允許 RPC 寫入，恢復政策會重新引入風險。
+
 ## 遷移與回滾
 
 Up/Down 均在交易內設 `lock_timeout='5s'` 並鎖表，超時整筆失敗。Up guard 要求 v2 基線：恰 10 支已發布影片（Day 1 六支、Day 2 四支）、每支恰一筆 `2026-1` audience、11 位一期 active 學員、期別主檔、既有 policy/RPC 名稱及新物件不存在。Up 保存私有 `elite_videos_v3_backup`，建立「2026 第一期菁英班課程影片」，將 10 支歸課並保留發布狀態，授 `2026-1`，在同一交易內切換 RLS。

@@ -55,18 +55,42 @@ const originalCourse=[...baselineCourses][0];
 const {data:directCourse,error:directError}=await second.schema("elite").from("video_courses")
   .select("id").eq("id",originalCourse).maybeSingle();
 assert.ifError(directError); assert.equal(directCourse,null,"AC1 direct course ID hidden");
+const {error:studentCreate}=await first.schema("elite").rpc("video_course_create",{
+  p_title:"Forbidden student course",p_note:""});
+assert.ok(studentCreate,"Student cannot call instructor course-create RPC");
+const {error:studentDirectCourse}=await first.schema("elite").from("video_courses")
+  .insert({title:"Forbidden direct course"});
+assert.ok(studentDirectCourse,"Student cannot directly insert video_courses");
+const {error:studentDirectGrant}=await first.schema("elite").from("course_grants")
+  .insert({course_id:originalCourse,kind:"cohort",cohort_code:"2026-2"});
+assert.ok(studentDirectGrant,"Student cannot directly insert course_grants");
 
 const empty=await rpc(instructor,"video_course_create",{p_title:"Synthetic empty course",p_note:""});
 await rpc(instructor,"video_course_set_grants",{p_course_id:empty,p_cohorts:["2026-1"],p_users:[]});
 assert.ok(!(await ids(first,"video_courses")).has(empty),"AC8 granted course with no published video hidden");
 const draft=await rpc(instructor,"course_video_create",{
   p_course_id:empty,p_title:"Synthetic draft",p_url:"https://vimeo.com/123456789",p_category:"day2",p_note:""});
+const {error:studentPublish}=await first.schema("elite").rpc("course_video_publish",{
+  p_video_id:draft,p_publish:true});
+assert.ok(studentPublish,"Student cannot call instructor publish RPC");
 assert.ok((await ids(instructor,"course_videos")).has(draft),"AC3 instructor sees draft");
 assert.ok(!(await ids(first,"course_videos")).has(draft),"AC3 student cannot see draft");
 assert.ok(!(await ids(first,"video_courses")).has(empty),"AC8 course with only drafts hidden");
 await rpc(instructor,"course_video_publish",{p_video_id:draft,p_publish:true});
 assert.ok((await ids(first,"course_videos")).has(draft),"AC3 published visible");
 assert.ok((await ids(first,"video_courses")).has(empty),"AC3 course visible after publication");
+const suspendedId=(await suspended.auth.getUser()).data.user.id;
+await rpc(instructor,"video_course_set_grants",{
+  p_course_id:empty,p_cohorts:[],p_users:[suspendedId]});
+assert.equal((await ids(suspended,"video_courses")).size,0,"AC6 personally granted suspended course hidden");
+assert.equal((await ids(suspended,"course_videos")).size,0,"AC6 personally granted suspended video hidden");
+const {error:nullPublish}=await instructor.schema("elite").rpc("course_video_publish",{
+  p_video_id:draft,p_publish:null});
+assert.match(nullPublish?.message ?? "",/publish flag required/,"Null publish flag rejected");
+const {data:stillPublished,error:stillPublishedError}=await instructor.schema("elite")
+  .from("course_videos").select("published_at").eq("id",draft).single();
+assert.ifError(stillPublishedError);
+assert.ok(stillPublished.published_at,"Null flag must not unpublish the video");
 await rpc(instructor,"course_video_publish",{p_video_id:draft,p_publish:false});
 assert.ok(!(await ids(first,"course_videos")).has(draft),"AC3 unpublish hides immediately");
 
@@ -100,4 +124,4 @@ await rpc(instructor,"course_video_delete",{p_video_id:draft});
 await rpc(instructor,"video_course_delete",{p_course_id:empty});
 assert.deepEqual(await ids(first,"course_videos"),baselineVideos,"AC10 baseline videos restored");
 assert.deepEqual(await ids(first,"video_courses"),baselineCourses,"AC10 baseline course restored");
-console.log("Videos v3 local AC1/2/3/4/5/6/8, move/delete, ACL and baseline checks passed");
+console.log("Videos v3 local AC1/2/3/4/5/6/8, suspended personal grant, denied student writes, move/delete, ACL and baseline checks passed");

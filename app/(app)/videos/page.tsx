@@ -43,7 +43,7 @@ export default async function VideosPage() {
                 {instructor && published === 0 && <Badge tone="amber">尚無已發布影片</Badge>}
               </div>
               {course.note && <p className="mt-3 line-clamp-2 text-sm text-slate-600">{course.note}</p>}
-              <p className="mt-5 text-sm text-amber-700">{published} 支已發布影片{instructor && included.length > published ? ` · ${included.length-published} 支草稿` : ""}</p>
+              <p className="mt-5 text-sm text-amber-700">{published} 支影片{instructor && included.length > published ? ` · ${included.length-published} 支草稿` : ""}</p>
               <p className="mt-2 text-xs text-slate-500">進入課程 →</p>
             </Card>
           </Link>;

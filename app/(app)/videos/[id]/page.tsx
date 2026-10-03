@@ -42,7 +42,7 @@ export default async function VideoPage({ params }: { params: Promise<{id:string
   const embed = videoEmbedUrl(video.url);
   const instructor = enrollment.class_role === "instructor";
   return <div>
-    <Link href={`/videos/courses/${video.course_id}`} className="mb-4 inline-block text-sm text-amber-700 hover:underline">← 返回{course.title}</Link>
+    <Link href={`/videos/courses/${video.course_id}`} className="mb-4 inline-block text-sm text-amber-700 hover:underline">← 返回「{course.title}」</Link>
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
       <main className="min-w-0">
         <div className="aspect-video overflow-hidden rounded-xl border border-slate-300 bg-black">
