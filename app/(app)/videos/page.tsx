@@ -1,52 +1,52 @@
 import Link from "next/link";
 import { requireEnrollment } from "@/lib/auth";
 import { Card, EmptyState, PageHeader, Badge } from "@/components/ui";
-import { videoGroups, orderedVideos, type Video, type VideoAudience, type RosterMember } from "@/lib/video-course";
-import { VideoAdmin } from "./VideoAdmin";
+import type { Video, VideoCourse, CourseGrant, RosterMember } from "@/lib/video-course";
+import { VideoCourseAdmin } from "./VideoCourseAdmin";
 
 export default async function VideosPage() {
   const { supabase, enrollment } = await requireEnrollment();
   const instructor = enrollment.class_role === "instructor";
-  const { data, error } = await supabase.schema("elite").from("course_videos")
-    .select("id,title,url,category,note,created_at,published_at")
-    .order("created_at", { ascending: true });
-  const videos = orderedVideos((data ?? []) as Video[]);
-  const [audienceResult, cohortResult, rosterResult] = instructor ? await Promise.all([
-    supabase.schema("elite").from("video_audiences").select("video_id,kind,cohort_code,target_user_id"),
+  const [courseResult, videoResult] = await Promise.all([
+    supabase.schema("elite").from("video_courses").select("id,title,note,created_at")
+      .order("created_at", { ascending: true }),
+    supabase.schema("elite").from("course_videos")
+      .select("id,course_id,title,url,category,note,created_at,published_at"),
+  ]);
+  const courses = (courseResult.data ?? []) as VideoCourse[];
+  const videos = (videoResult.data ?? []) as Video[];
+  const [grantResult, cohortResult, rosterResult] = instructor ? await Promise.all([
+    supabase.schema("elite").from("course_grants").select("course_id,kind,cohort_code,target_user_id"),
     supabase.schema("elite").from("cohorts").select("code,display_name").order("code"),
-    supabase.schema("elite").from("enrollments").select("user_id,display_name,cohort,team_id,class_role,status")
-      .order("display_name"),
-  ]) : [{data:[]},{data:[]},{data:[]}];
+    supabase.schema("elite").from("enrollments")
+      .select("user_id,display_name,cohort,team_id,class_role,status").order("display_name"),
+  ]) : [{ data: [] }, { data: [] }, { data: [] }];
+
   return <div>
     <PageHeader title="課程影片" subtitle={instructor
-      ? "依章節管理影片；草稿先試播，再選擇對象開通。"
-      : "依課程順序觀看，點選一堂即可進入播放頁。"} />
-    {instructor && <VideoAdmin videos={videos}
-      audiences={(audienceResult.data ?? []) as VideoAudience[]}
+      ? "以課程管理開通對象；影片先試播、再發布。"
+      : "先選課程，再依 Day 1、Day 2 等分段觀看。"} />
+    {instructor && <VideoCourseAdmin courses={courses} videos={videos}
+      grants={(grantResult.data ?? []) as CourseGrant[]}
       cohorts={(cohortResult.data ?? []) as {code:string;display_name:string}[]}
       roster={(rosterResult.data ?? []) as RosterMember[]} />}
-    {error ? <EmptyState>暫時無法取得影片，請稍後重試。</EmptyState>
-      : videos.length === 0 ? <EmptyState>目前沒有可觀看的課程影片。</EmptyState>
-        : <div className="space-y-7">{videoGroups(videos).map((group) => <section key={group.key}>
-          <div className="mb-3 border-l-2 border-[color:var(--gold)] pl-3">
-            <h2 className="font-display text-lg font-semibold text-slate-800">{group.name}</h2>
-            <p className="text-xs text-slate-400">{group.videos.length} 堂</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">{group.videos.map((video,index) => <Link
-            key={video.id} href={`/videos/${video.id}`} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-amber-600">
+    {courseResult.error || videoResult.error ? <EmptyState>暫時無法取得課程，請稍後重試。</EmptyState>
+      : courses.length === 0 ? <EmptyState>目前沒有可觀看的課程。</EmptyState>
+        : <div className="grid gap-4 sm:grid-cols-2">{courses.map((course) => {
+          const included = videos.filter((v) => v.course_id === course.id);
+          const published = included.filter((v) => v.published_at).length;
+          return <Link key={course.id} href={`/videos/courses/${course.id}`}
+            className="block rounded-xl focus-visible:outline-2 focus-visible:outline-amber-600">
             <Card className="h-full transition hover:border-amber-700">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 gap-3"><span className="mt-0.5 font-display text-lg text-amber-700">{String(index+1).padStart(2,"0")}</span>
-                  <div><h3 className="font-semibold text-slate-800">{video.title}</h3>
-                    {video.note && <p className="mt-1 line-clamp-2 text-sm text-slate-400">{video.note}</p>}
-                  </div></div>
-                {instructor && !video.published_at && <Badge tone="amber">草稿</Badge>}
+                <h2 className="font-display text-xl font-semibold text-slate-900">{course.title}</h2>
+                {instructor && published === 0 && <Badge tone="amber">尚無已發布影片</Badge>}
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                <span>{new Date(video.created_at).toLocaleDateString("zh-TW")}</span><span>觀看課程 →</span>
-              </div>
+              {course.note && <p className="mt-3 line-clamp-2 text-sm text-slate-600">{course.note}</p>}
+              <p className="mt-5 text-sm text-amber-700">{published} 支已發布影片{instructor && included.length > published ? ` · ${included.length-published} 支草稿` : ""}</p>
+              <p className="mt-2 text-xs text-slate-500">進入課程 →</p>
             </Card>
-          </Link>)}</div>
-        </section>)}</div>}
+          </Link>;
+        })}</div>}
   </div>;
 }
