@@ -848,6 +848,26 @@ function StationBlock({
             <pre className="max-h-[420px] overflow-auto rounded-lg border border-slate-200 border-l-2 border-l-amber-500 bg-white/40 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
               {prompt}
             </pre>
+            {st.backup && (
+              <details className="rounded-lg border border-slate-200 bg-white/20 px-3 py-2">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-600">
+                  {st.backup.title}
+                </summary>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{st.backup.hint}</p>
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    className="btn-ghost rounded px-2.5 py-1 text-sm"
+                    onClick={() => void copy(st.backup!.prompt(ctx), `已複製「${st.backup!.title}」指令`)}
+                  >
+                    複製備援指令
+                  </button>
+                </div>
+                <pre className="mt-2 max-h-[320px] overflow-auto rounded-lg border border-slate-200 border-l-2 border-l-slate-400 bg-white/40 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                  {st.backup.prompt(ctx)}
+                </pre>
+              </details>
+            )}
           </div>
 
           <div className="space-y-2">

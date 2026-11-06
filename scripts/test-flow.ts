@@ -213,6 +213,41 @@ add("L1 前置帶入完整名單與檔數", () => {
   return t.includes("以下 13 檔") && t.includes("重電：1519 華城、1503 士電、1514 亞力");
 });
 
+add("指令 2 已對齊 2026-11 更新檔：九欄、比例、來源優先順序、(b) 通道／不存在", () => {
+  const t = P.l1Pre(ctxOf(blankState()));
+  return t.includes("每檔九欄") && !t.includes("每檔八欄") && t.includes("① 流通在外股數")
+    && t.includes("佔流通股數比例（買賣超股數 ÷ 流通在外股數）") && t.includes("【資料來源優先順序】")
+    && t.includes("【金額欄位為選填】") && t.includes("還是「這筆資料官方就沒有」")
+    && !t.includes("一律使用 TWSE / TPEx 官方數字") && !t.includes("張數與金額");
+});
+
+add("指令 2 備援指令：只整理不補數字，帶入檔數", () => {
+  const t = P.l1PreManual(ctxOf(blankState()));
+  return t.includes("以下是我從 Goodinfo 複製的 13 檔") && t.includes("不要補齊空欄位，不要推估，不要加註你自己的判斷。")
+    && !t.includes("交棒卡");
+});
+
+add("指令 3 第 ① 項要求以佔流通股數比例做跨股比較", () => {
+  const t = P.l1(ctxOf(blankState()));
+  return t.includes("① 拆解近 5 日與近 20 日外資買賣超前十大，\n　 請以「佔流通股數比例」而非金額做跨股比較，\n　 判斷資金是否集中在同一個子段");
+});
+
+add("指令 4 季度例子：季末未滿 45 天不算已公布", () =>
+  P.recentQuartersExample(new Date(2026, 10, 6)) === "2025Q3 / Q4 / 2026Q1 / Q2");
+
+add("指令 4 季度例子：Q3 公布後往前推一季", () =>
+  P.recentQuartersExample(new Date(2026, 10, 20)) === "2025Q4 / 2026Q1 / Q2 / Q3");
+
+add("指令 4 季度例子：跨年與同年格式（年份只在換年時標）", () =>
+  P.recentQuartersExample(new Date(2027, 0, 10)) === "2025Q4 / 2026Q1 / Q2 / Q3"
+  && P.recentQuartersExample(new Date(2026, 7, 20)) === "2025Q3 / Q4 / 2026Q1 / Q2"
+  && P.recentQuartersExample(new Date(2026, 7, 1)) === "2025Q2 / Q3 / Q4 / 2026Q1");
+
+add("指令 4 帶入季度例子", () => {
+  const t = P.l2Pre({ ...ctxOf(blankState()), now: new Date(2026, 10, 6) });
+  return t.includes("① 近四季毛利率（逐季列出，例如 2025Q3 / Q4 / 2026Q1 / Q2）");
+});
+
 add("L1 的 SLT 分級行依子段動態產生", () =>
   P.l1(ctxOf(blankState())).includes("SLT 分級：伺服器電源與機櫃 __ BBU __ 重電 __ 電源核心零組件 __"));
 
