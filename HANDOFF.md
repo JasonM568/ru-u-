@@ -1,6 +1,6 @@
 # HANDOFF — 菁英班孵化系統 1.0
 
-> 交班單。最後更新：2026-09-02。維護前先讀這份 + `CLAUDE.md`。
+> 交班單。最後更新：2026-11-15。維護前先讀這份 + `CLAUDE.md`；逐次紀錄見 `WORKLOG.md`。
 
 ## 這是什麼
 
@@ -62,20 +62,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_TVSonFIGTq1sI75A8o7xQg_95grIHPL
 
 ## 五層作業流控制台（/flow）
 
-✅ **2026-09-02 已合併 main 並上線。** 完整規格見 `docs/flow-console-SPEC.md`，開發脈絡見 `WORKLOG.md` 2026-09-02。
+✅ **階段一～六全部上線**（階段一～五 2026-09-02；階段六自訂產業鏈 2026-10-03 PR #1）。✅ **指令文字已對齊顧老師《指令串(Elite-v3)》**（2026-11-15，PR #5 v2、PR #6 v3）。完整規格見 `docs/flow-console-SPEC.md`，開發脈絡見 `WORKLOG.md`。
 
-8/30 月例會「AI 供應鏈五層作業流」的線上版：輸入股票代號 → 產出八道指令 → 交棒卡逐層帶入 → 收斂成一張投資論點卡。目前資料存 localStorage（`flow5:{userId}`），**尚未進資料庫**。
+8/30 月例會「AI 供應鏈五層作業流」的線上版：輸入股票代號 → 產出八道指令 → 交棒卡逐層帶入 → 收斂成一張投資論點卡 → T+20 對帳。正本在 `elite.flow_runs`（localStorage 只是快取），論點卡在 `elite.thesis_cards`。
 
-- 資料與純函式：`lib/flow/`（`segments` 分段資料｜`prompts` 指令產生器｜`ccc` 確認成本與 33% 硬閘門｜`state` 分段結構邏輯｜`stations` 站點定義）
+- 資料與純函式：`lib/flow/`（`segments` 分段資料｜`prompts` 指令產生器（教材原文＋一張白紙常數）｜`ccc` 確認成本與 33% 硬閘門｜`state` 分段結構邏輯｜`stations` 站點定義、閘門、七個錯、不經 L3 交付物常數｜`chains` 自訂鏈｜`runs`／`cloud`／`config`／`reconcile`）
 - 畫面：`app/(app)/flow/`
-- 測試：`npx tsx scripts/test-flow.ts`（31/31）
-- **改分段資料或指令文字前先看 SPEC 的「不可擅改」一節**——指令文字是教材原文，補充個股與教材原表必須分得清楚。
-
-後續三階段（論點卡上雲 → 講師端 T+20 對帳 → 分段設定下發）見 SPEC。
+- 測試：`npx tsx scripts/test-flow.ts`（87/87）
+- **改分段資料或指令文字前先看 SPEC 的「不可擅改」一節**——指令文字是教材原文；L3 閘門是四態（`Gate.bad[]`／`hold[]`），不得改回二選一。
+- 教材有新版時的做法：抽 docx 文字 → 以九檔範例渲染 `prompts.ts` → 正規化 diff → 開 `docs/TICKET-flow-prompts-*.md` 列差異與待確認 → Jason 拍板再改字串。
 
 ## 路由
 
-- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，2026-09-02 上線）、`/flow/cards`（我的論點卡＋T+20 對帳，2026-09-02 上線）；`/flow` 自訂產業鏈（階段六，`feat/flow-custom-chain` 待合併）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
+- 學員：`/`（儀表板）、`/questionnaire`、`/materials`（課程教材，講師可上傳/刪除）、`/videos`（課程影片，講師貼 YouTube/Vimeo 連結）、`/flow`（五層作業流控制台，含自訂產業鏈，指令對齊 v3）、`/flow/cards`（我的論點卡＋T+20 對帳）、`/videos/courses/[courseId]`（課程式播放，videos v3）、`/team`（`/team/meetings`｜`/ledger`｜`/reviews`）
 - 講師：`/admin/roster`（名冊分組）、`/admin/results`（問卷分流＋看學員完整作答）、`/admin/assessments`、`/admin/teams`、`/admin/thesis-cards`（論點卡與 T+20 對帳總覽）、`/admin/process-notes`、`/admin/schedule`
 - 公開：`/login`、`/not-enrolled`
 - 權限閘門：`proxy.ts`（未登入→login）；`lib/auth.ts` 的 `requireEnrollment()`／`requireInstructor()`（頁面層）
@@ -114,10 +113,13 @@ QEC 深藏藍 × 金奢華風。色票在 `app/globals.css` 用 Tailwind `@theme
 - [ ] 決定自訂產業鏈的「拆段引導」要不要做（拆段前置指令＋編輯器提示＋單一子段警示，見 WORKLOG 階段六「已知風險與待決」）
 - [ ] 正式開課前完整清理測試資料（清空「學院測試」問卷/團隊紀錄）
 - [ ] 課前：講師在 `/admin/roster` 幫 8 位真實學員分隊、課後依問卷指派職務
-- [ ] **作業流控制台階段一 UAT**：登入 `/flow` 走一遍（Claude 不能輸入密碼，無法代測）。OK 後合 `feat/flow-console` → main
+- [ ] **二期前置（Jason 自己操作）**：切當期 2026-2、建「2026 第二期」課程（授權 2026-2）、例會課程（11 月起授權 2026-1＋2026-2）、上傳二期教材、指派二期隊伍
+- [ ] `docs/TICKET-video-category-meeting.md`：/videos 影片類型加「例會」（Ready），上線後 SQL 把例會影片 extra→meeting
+- [ ] `docs/multi-cohort-v1-SPEC.md` 路 B：讓三位複訓（陳建中／黃淑珮／桂平宇，11/07 已走路 A 轉 2026-2）看回一期教材與團隊紀錄
+- [ ] 名冊顯示名改中文：JoeHsieh→謝松凌、ppfm.o3→鄭元麒（一行 SQL，待 Jason 點頭）；一期課程 11 筆個人授權清到只剩三位複訓
+- [ ] /admin/results 加期別篩選＋複訓標記；名冊「停權」按鈕措辭
 - [ ] **查證 `lib/flow/segments.ts` 裡 16 檔補充個股**（散熱 3483/3338/6275/6125/4763、CPO 3234/3450/4977/4991/2340、PCB 6269/2367/2316/4927/6153/6251）的代號、公司名與所屬子段。這些非教材原表，是 Claude 依訓練資料補的
-- [ ] 作業流控制台階段二～四（論點卡上雲 → 講師端 T+20 對帳 → 分段設定下發），見 `docs/flow-console-SPEC.md`
 - [ ] 暫緩功能：教材下載紀錄追蹤（誰下載過哪個檔案）——需 `elite.material_downloads` 表＋下載改走系統端點記錄再轉址（設計方案在 2026-07-19 對話）
-- 現況名冊：9 學員（吳旻玹/桂平宇/楊世祺/莊富翔/陳俐瑾/陳建中/黃大正/黃淑珮/學院測試）＋ 3 講師（陳孟宏/顧及然/梁舒庭）。「測試點數」已移除。多數學員未分隊未填問卷（課前狀態）
+- 現況名冊（2026-11-07）：2026-1 八人、2026-2 八人（含三位複訓；謝松凌 jojoling@gmail.com、鄭元麒 ppfm.o3@msa.hinet.net 顯示名仍是英文）＋ 3 講師（陳孟宏/顧及然/梁舒庭）。當期仍是 2026-1。
 - 帳密：兩站同帳密、密碼單向雜湊不可查；不做臨時密碼，忘記密碼走 course 平台重設
 - ⚠️ 非本專案：該 Supabase 有 44 張 ERP 表 RLS 未開（既有問題），本系統未觸碰

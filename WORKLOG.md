@@ -6,7 +6,9 @@
 
 ## 2026-11-15　作業流控制台 — 對齊顧老師《指令串(Elite-v3)》：R 的錨、四態判定、一張白紙、不經 L3 的交付物
 
-> 分支 `feat/flow-prompts-v3`（基於未合併的 `feat/flow-prompts-v2r`）。**純字串、站點文案與前端元件，不建表、不動 RLS、不改 `computeCcc`。** 工單 `docs/TICKET-flow-prompts-v3-update.md`。
+> 分支 `feat/flow-prompts-v3`（基於 `feat/flow-prompts-v2r`）。**純字串、站點文案與前端元件，不建表、不動 RLS、不改 `computeCcc`。** 工單 `docs/TICKET-flow-prompts-v3-update.md`。
+>
+> ✅ **2026-11-15 Jason 說「可以推」→ PR #5（v2r，merge cc1a0e8）、PR #6（v3，merge 6b151f1）依序合併 main，Vercel 自動部署 Ready，正式站 /flow 用 ego lite 實看：總覽一張白紙說明、七個錯、指令 5 後「不經 L3 的交付物」卡與 CRS 表、指令 7 四態閘門與新指令文字全部在線。** 回滾點 f9cc50c。
 
 **比對**：同 v2 做法，九檔範例渲染後與 v3 逐段正規化 diff。指令 1～5、L5 實質相同；差異在指令 6（交集卡＋T+20）、指令 7（大改）、指令 8（交棒卡＋合計口徑）。另有五個非指令新章節。Jason 拍板五項待確認全照建議。
 
@@ -20,6 +22,33 @@
 **驗證**：test-flow 87/87、tsc、eslint、`npm run build` 全過；渲染後與 v3 diff 只剩「九檔」變數化、動態季度例子、L3 變數前半形空格；一張白紙段與原文逐字相同。
 
 **未做（另議）**：ccMode 不加 p0／pf 口徑維度（`computeCcc` 本來就是 p0）；「交棒卡總表」仍無獨立畫面。
+
+---
+
+## 2026-11-07　二期前置 — 複訓學員走路 A、例會分類工單、問卷與當期切換判定
+
+> 不動程式；一筆 SQL（`elite.enrollments`）＋三份文件。背景：二期 11 月開課，一期 8 位學員已在線上使用。
+
+**決議（11/01，Jason）**：觀看權限按課程開通（videos v3 已支援期別／個人授權，不用改）；例會 11 月起兩期合辦；二期學員只填適應性問卷、暫不看一期資料；複訓學員＝完整二期權限，且保留一期教材與團隊紀錄 → 選多期權限「路 B」（`docs/multi-cohort-v1-SPEC.md`，11/05 決斷點，過期退回路 A）；複訓不重填問卷；二期作答不可覆蓋一期作答（問卷以 user_id 為鍵＋RLS 本來就擋，唯一風險是講師按「開放重填」）。
+
+**執行（11/07）**：路 B 未動工、過決斷點 → Jason 拍板路 A：`elite.enrollments` 把複訓三位 **陳建中、黃淑珮、桂平宇** 由 2026-1 轉 2026-2（team_id 清空、job_role 保留）。回復資料：陳建中 2026-1 第 1 隊 macro；黃淑珮 2026-1 第 2 隊 risk；桂平宇 2026-1 第 2 隊 macro。轉期後三位仍靠既有個人授權看一期課程影片；一期教材與團隊紀錄要等路 B 才看得到。名冊現況：2026-1 八人、2026-2 八人（含三位複訓）。
+
+**判定**：切「當期」只影響講師端預設（名冊新增預設期別、/flow 下發目標、/admin/teams 預設檢視、教材「全部期別」內部記錄期別），不影響 RLS 與學員可見範圍；一期每月例會只要例會課程授權含 2026-1 就不受影響。二期學員填問卷：加入名冊後登入儀表板即有「開始填寫」，不需另發問卷；謝松凌（jojoling@gmail.com，顯示名 JoeHsieh）現場催填。
+
+**工單**：`docs/TICKET-video-category-meeting.md`（Ready，/videos 影片類型加「例會」：`MATERIAL_CATEGORIES` 加 `meeting`＋`course_video_create` 允許清單加 'meeting'；上線後把例會影片由 extra 改 meeting）。
+
+**未決**：一期課程 11 筆個人授權清到只剩三位複訓；名冊 JoeHsieh→謝松凌、ppfm.o3→鄭元麒 改中文顯示名（一行 SQL）；路 B 開課後再做。Jason 自己操作：切當期 2026-2、建二期課程與例會課程、上傳二期教材、指派二期隊伍。
+
+---
+
+## 2026-10-03　期別 Cohort v1、課程影片 v2／v3 合併上線（摘要）
+
+> 細節見各 SPEC：`docs/cohort-v1-SPEC.md`、`docs/videos-v2-SPEC.md`、`docs/videos-v3-SPEC.md`、`docs/KICKOFF-cohort-v1.md`。
+
+- **Cohort v1**（merge e0de414）：`elite.cohorts`（2026-1 當期、2026-2）、`enrollments.cohort/status`、`my_cohort()`／`set_current_cohort`／`current_cohort`；教材、流程設定、團隊三表 RLS 以 `cohort = my_cohort()` 隔離（22 條政策＋1 條 Storage）；教材可標「全部期別」。
+- **Videos v2**（merge 471bb13）：逐支影片受眾與課程式播放。
+- **Videos v3**（merge f9cc50c）：`video_courses`／`course_videos`／`course_grants(kind cohort|user)`，以課程為單位對期別或個人開通，可見＝授權 ∧ 已發布；`course_video_create` 類別限 pre/day1/day2/extra。
+- 同日 `feat/flow-custom-chain`（階段六）合併 PR #1。
 
 ---
 
