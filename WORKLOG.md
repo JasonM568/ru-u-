@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-11-06　作業流控制台 — 八道指令對齊顧老師《指令串(Elite-v2)》更新檔
+
+> 分支 `feat/flow-prompts-v2r`。**純字串與站點文案，不建表、不動 RLS。** 工單 `docs/TICKET-flow-prompts-v2-update.md`。
+
+**比對**：把 `prompts.ts` 以教材範例（電源供應段九檔）渲染，與更新檔逐段正規化 diff。行前自檢、L0、L2、交集、L3、L4、L5 一字不差；差異只在指令 2（大改）、指令 3（① 多一行比例）、指令 4（① 多季度例子）。三段 AI 專用原文未改，通用版簽核狀態不變。
+
+**改動**：
+- `prompts.ts`：`l1Pre` 整段換成更新檔原文（資料來源優先順序、九欄、比例取代金額、紀律第 5 條、輸出 (a)(b)(c)）；新增 `l1PreManual`（指令 2 備援：人工貼 Goodinfo，AI 只排版）；`l1` ① 加「請以『佔流通股數比例』而非金額做跨股比較」；`l2Pre` ① 加季度例子，由 `recentQuartersExample()` 依當天算最近四個已公布季（季末滿 45 天），格式同教材「2025Q3 / Q4 / 2026Q1 / Q2」，`PromptContext.now` 供測試。Jason 拍板用動態季度，不寫死。
+- `stations.ts`：`Station.backup` 新欄位；L1P 加備援、三則資料邊界 notes、checks 改九欄／來源優先順序／(b) 通道 vs 不存在／金額粗估；L1 備援 note 改三層版（四層前瞻訊號）、checks 加比例。
+- `FlowConsole.tsx`：有 `backup` 的站點在指令下方多一個可展開「備援路徑」區塊，獨立「複製備援指令」，不產卡、不影響完成狀態。
+- `scripts/test-flow.ts`：＋7 案（九欄／備援／比例／季度例子四種日期／帶入）→ 77/77。
+
+**驗證**：test-flow 77/77、test-scoring 5/5、tsc、eslint、`npm run build` 全過；渲染後與更新檔 diff 僅剩「九檔」變數化與 L3 變數前半形空格，無語意差。
+
+**未做（另議）**：更新檔「最常犯的六個錯」「交棒卡總表」兩頁無對應畫面。
+
+---
+
 ## 2026-09-02　作業流控制台 — 階段六：自訂產業鏈（選股範圍擴大到任何台股）
 
 > 在 `feat/flow-custom-chain` 分支。**不建新表、不動 RLS、不改任何指令原文字串。** 三段 AI 專用指令的通用版草稿在 `docs/flow-prompts-generic-draft.md`，待顧老師簽核。
