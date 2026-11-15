@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-11-15　作業流控制台 — 對齊顧老師《指令串(Elite-v3)》：R 的錨、四態判定、一張白紙、不經 L3 的交付物
+
+> 分支 `feat/flow-prompts-v3`（基於未合併的 `feat/flow-prompts-v2r`）。**純字串、站點文案與前端元件，不建表、不動 RLS、不改 `computeCcc`。** 工單 `docs/TICKET-flow-prompts-v3-update.md`。
+
+**比對**：同 v2 做法，九檔範例渲染後與 v3 逐段正規化 diff。指令 1～5、L5 實質相同；差異在指令 6（交集卡＋T+20）、指令 7（大改）、指令 8（交棒卡＋合計口徑）。另有五個非指令新章節。Jason 拍板五項待確認全照建議。
+
+**改動**：
+- `prompts.ts`：`intersect` 卡尾加「（必須含數字、門檻與檢查日期）」與「T+20 對帳日」；`l3` ② 加【R 的來源寫死】（同儕中位本益比 × 預估 EPS、同儕 ≥5、EPS 來源 ≥2、三情境、湊不出判「未知待核」）與【R 減半壓力測試】，④ 由「部位建議」換成「四態進場判定」六步＋【P0 上限】＋【部位形式】，交棒卡新增進場判定／R 的錨／P0 上限／T+20 等 11 行；`l4` 卡加「合計口徑（p0 預設／pf）」「合計方式」；`thesisDraft` 五、CCC 補「合計口徑採 p0」（控制台自撰段落）。新增 `BLANK_SHEET` 與 `withBlankSheet()`。
+- `stations.ts`：`Gate` 改 `options: string[]`、`bad: string[]`、`hold?: string[]`、`holdMessage?`；L3 閘門改四態（bad＝不進場、hold＝條件價／條件事件）；指令 1～8 與 L5 的 `prompt` 包 `withBlankSheet`（行前自檢、論點卡起草、指令 2 備援不包）；PRE 加行前共識三口徑 notes＋check；XS 加失效條件可檢驗範例＋對帳儀式 notes、check 加 T+20；L3 notes 改「未知待核」原文＋R 的錨、checks 9 條；L4 note 改 p0 口徑原文、check 加口徑；`COMMON_MISTAKES` 6→7；新常數 `BLANK_SHEET_NOTE`、`THREE_QUESTIONS`、`CRS_ALLOCATION`。
+- `FlowConsole.tsx`：`statusOf` 與 `GateBlock` 支援多選項／bad 陣列／hold（琥珀色、不擋完成）；舊 run 的 L3 閘門值不在新選項內 → 視為未回答，不報錯；總覽「五個鐵則」下加「一張白紙宣告」說明；指令 5 之後新增 `BeyondL3Card`（三個問題＋CRS 燈號 × 段位 4×5 表，純展示不存狀態）。
+- `scripts/test-flow.ts`：＋10 案（交集卡／L3 ②④／L3 卡／L4 卡／一張白紙涵蓋範圍／產生器不含宣告／閘門四態／七個錯／論點卡口徑）→ 87/87。
+- `docs/flow-console-SPEC.md` 不可擅改：第 1 條改 v3、新增第 7 條「L3 閘門是四態，不得改回二選一；R 的錨是教材規則」。
+
+**驗證**：test-flow 87/87、tsc、eslint、`npm run build` 全過；渲染後與 v3 diff 只剩「九檔」變數化、動態季度例子、L3 變數前半形空格；一張白紙段與原文逐字相同。
+
+**未做（另議）**：ccMode 不加 p0／pf 口徑維度（`computeCcc` 本來就是 p0）；「交棒卡總表」仍無獨立畫面。
+
+---
+
 ## 2026-11-06　作業流控制台 — 八道指令對齊顧老師《指令串(Elite-v2)》更新檔
 
 > 分支 `feat/flow-prompts-v2r`。**純字串與站點文案，不建表、不動 RLS。** 工單 `docs/TICKET-flow-prompts-v2-update.md`。

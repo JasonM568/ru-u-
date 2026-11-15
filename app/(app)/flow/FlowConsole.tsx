@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, PageHeader, Field, Input, Select } from "@/components/ui";
 import {
   CRS_MATRIX,
@@ -15,6 +15,9 @@ import {
   IRON_RULES,
   STATIONS,
   TAKEAWAYS,
+  BLANK_SHEET_NOTE,
+  THREE_QUESTIONS,
+  CRS_ALLOCATION,
   type Station,
 } from "@/lib/flow/stations";
 import {
@@ -370,8 +373,12 @@ export function FlowConsole({
       if (missing.length) {
         return { kind: "wait", label: `缺 ${missing.map((c) => CARD_LABEL[c]).join("、")}` };
       }
-      if (st.gate && state.gates[st.id] === st.gate.bad) {
+      const gateVal = st.gate ? (state.gates[st.id] ?? "") : "";
+      if (st.gate && st.gate.bad.includes(gateVal)) {
         return { kind: "blocked", label: "閘門未過" };
+      }
+      if (st.gate && st.gate.hold?.includes(gateVal)) {
+        return { kind: "open", label: "條件待成立" };
       }
       if (st.form && cccOf(state.tc).pass === false) {
         return { kind: "blocked", label: "CCC 未過" };
@@ -653,6 +660,9 @@ export function FlowConsole({
           ))}
         </ol>
 
+        <h2 className="font-display mt-5 mb-2 text-lg text-slate-800">一張白紙宣告（每一道指令開頭都貼）</h2>
+        <p className="text-base leading-relaxed text-slate-600">{BLANK_SHEET_NOTE}</p>
+
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-base">
             <thead>
@@ -691,8 +701,8 @@ export function FlowConsole({
 
       {/* 站點 */}
       {STATIONS.map((st) => (
+        <Fragment key={st.id}>
         <StationBlock
-          key={st.id}
           station={st}
           state={state}
           ctx={ctx}
@@ -707,6 +717,8 @@ export function FlowConsole({
           cohorts={cohorts}
           runId={runId}
         />
+        {st.id === "L2" && <BeyondL3Card />}
+        </Fragment>
       ))}
 
       {toast && (
@@ -1019,12 +1031,21 @@ function GateBlock({
   value: string;
   onPick: (v: string) => void;
 }) {
-  const tripped = value === gate.bad;
-  const passed = !!value && !tripped;
+  // 舊 run 存的值若不在目前選項內（例如 L3 閘門由二選一改四態），視為未回答
+  const answered = gate.options.includes(value);
+  const tripped = answered && gate.bad.includes(value);
+  const held = answered && !!gate.hold?.includes(value);
+  const passed = answered && !tripped && !held;
   return (
     <div
       className={`overflow-hidden rounded-lg border ${
-        tripped ? "border-rose-500 bg-rose-50" : passed ? "border-emerald-500" : "border-slate-200"
+        tripped
+          ? "border-rose-500 bg-rose-50"
+          : held
+            ? "border-amber-500 bg-amber-50"
+            : passed
+              ? "border-emerald-500"
+              : "border-slate-200"
       }`}
     >
       <div
@@ -1032,9 +1053,11 @@ function GateBlock({
         style={{
           background: tripped
             ? "repeating-linear-gradient(135deg,#fb7185 0 9px,transparent 9px 18px)"
-            : passed
-              ? "#34d399"
-              : "repeating-linear-gradient(135deg,var(--gold) 0 9px,transparent 9px 18px)",
+            : held
+              ? "#f59e0b"
+              : passed
+                ? "#34d399"
+                : "repeating-linear-gradient(135deg,var(--gold) 0 9px,transparent 9px 18px)",
         }}
       />
       <div className="space-y-2 px-4 py-3">
@@ -1057,13 +1080,75 @@ function GateBlock({
             </label>
           ))}
         </div>
-        {value && (
-          <p className={`text-base leading-relaxed ${tripped ? "text-rose-700" : "text-emerald-700"}`}>
-            {tripped ? gate.badMessage : gate.okMessage}
+        {answered && (
+          <p
+            className={`text-base leading-relaxed ${
+              tripped ? "text-rose-700" : held ? "text-amber-800" : "text-emerald-700"
+            }`}
+          >
+            {tripped ? gate.badMessage : held ? gate.holdMessage : gate.okMessage}
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+/** 不經 L3 的交付物（v3）：跑完 L0～L2 就能用的兩樣東西，放在指令 5 之後。純展示，不存狀態。 */
+function BeyondL3Card() {
+  const [head, ...rows] = CRS_ALLOCATION;
+  return (
+    <Card className="mb-4 border-l-4 border-l-amber-400">
+      <div className="mb-1 text-sm uppercase tracking-wider text-slate-400">不經 L3 的交付物</div>
+      <h2 className="font-display mb-2 text-lg text-slate-800">三個問題與 CRS 燈號 × 段位配置表</h2>
+      <p className="mb-4 text-base leading-relaxed text-slate-600">
+        跑完 L0 到 L2 就有兩個可以直接用的東西，不需要等 L3。沒有它，L3 一旦判「不進場」，你會以為前面三層白跑。
+        這兩樣只需要 L0 交棒卡的燈號與 L2 交棒卡的段位，不需要選標的。
+      </p>
+
+      <h3 className="mb-1 text-base font-semibold text-slate-800">三個問題（跑完 L2 就該答得出來）</h3>
+      <ol className="list-decimal space-y-1 pl-5 text-base text-slate-700">
+        {THREE_QUESTIONS.map((q) => (
+          <li key={q}>{q}</li>
+        ))}
+      </ol>
+      <p className="mt-2 text-base leading-relaxed text-slate-600">
+        答不出來，代表 L2 的分類沒做完，或者你的持倉根本沒有對到段位。這三題比任何一檔新標的都重要——它們問的是你現在的風險長什麼樣子。
+      </p>
+
+      <h3 className="mt-4 mb-1 text-base font-semibold text-slate-800">CRS 燈號 × 段位配置表（對既有部位的動作）</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-base">
+          <thead>
+            <tr className="text-left text-sm uppercase tracking-wider text-slate-400">
+              {head.map((h) => (
+                <th key={h} className="border-b border-slate-200 px-2 py-2">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r[0]}>
+                {r.map((c, i) => (
+                  <td
+                    key={i}
+                    className={`border-b border-slate-200 px-2 py-2 ${i === 0 ? "font-medium text-slate-800" : "text-slate-600"}`}
+                  >
+                    {c}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-base leading-relaxed text-slate-600">
+        撤退順序取決於你對各段護城河強度的判斷，這張表給的是原則不是答案。要記住的是：這是對「既有部位」的動作，與新資金的進場判定是兩套東西。
+        新資金走 L3 的四態判定，既有部位走這張表。混用的結果，是你會在紅燈的時候還在算 P0 上限。
+      </p>
+    </Card>
   );
 }
 
