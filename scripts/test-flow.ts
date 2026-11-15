@@ -14,6 +14,7 @@ import { MAX_CARD_CHARS, forkForNextTarget, isBlankState, runTitle, sanitizeStat
 import { groupLabel, sanitizeCustomChain, type CustomChain } from "../lib/flow/chains";
 import { SEGMENTS, GROUPS, groupById } from "../lib/flow/segments";
 import * as P from "../lib/flow/prompts";
+import { COMMON_MISTAKES, STATIONS } from "../lib/flow/stations";
 import {
   activeSubs,
   blankState,
@@ -276,6 +277,61 @@ add("論點卡起草指令反映目前的合計規則", () => {
 
 add("論點卡起草指令明寫「第七欄我自己寫」", () =>
   P.thesisDraft(ctxOf(blankState())).includes("我可能錯在哪」我自己寫，你不要幫我寫"));
+
+/* ---------- v3 對齊（2026-11-15） ---------- */
+add("v3 交集卡：失效條件提示＋T+20 對帳日", () => {
+  const t = P.intersect(ctxOf(blankState()));
+  return t.includes("此判斷的失效條件：____\n　（必須含數字、門檻與檢查日期；寫法見本節最後）\nT+20 對帳日：____\n資料日期：____");
+});
+add("v3 L3 ②：R 的來源寫死、三情境、未知待核、R 減半壓力測試", () => {
+  const t = P.l3(ctxOf(blankState()));
+  return t.includes("這個成本是否超過預期報酬 R 的 1/3？") && t.includes("【R 的來源寫死，不接受其他算法】") &&
+    t.includes("V ＝ 同子段同儕本益比中位數 × 預估 EPS 中位") && t.includes("悲觀＝自身歷史中位本益比 × 預估 EPS 低值") &&
+    t.includes("此時判「未知待核」") && t.includes("【R 減半壓力測試】") && t.includes("門檻變成 R/6");
+});
+add("v3 L3 ④：四態進場判定六步、P0 上限公式、部位形式只在可進場（現在）回答", () => {
+  const t = P.l3(ctxOf(blankState()));
+  return t.includes("④ 四態進場判定") && !t.includes("④ 部位建議") &&
+    t.includes("(1) 硬否決 → 不進場") && t.includes("(6) 以上皆無 → 可進場（現在）") &&
+    t.includes("P0* ＝ V ÷（1 ＋ 3×C）") && t.includes("這一段只有判定為「可進場（現在）」時才需要回答");
+});
+add("v3 L3 交棒卡：進場判定／R 的錨／P0 上限／部位形式／T+20，舊的「建議部位形式」已移除", () => {
+  const t = P.l3(ctxOf(blankState()));
+  return t.includes("進場判定：（可進場現在／條件價／條件事件／不進場）") && t.includes("不進場屬於：（硬否決／時機否決）") &&
+    t.includes("R 的錨：同儕中位本益比 ____ × 預估 EPS ____") && t.includes("P0 上限（最高可接受買價）：____") &&
+    t.includes("部位形式：（分批／一次到位／不建立）") && t.includes("T+20 對帳日：____\n資料日期：____") &&
+    !t.includes("建議部位形式");
+});
+add("v3 L4 交棒卡：合計口徑與合計方式兩行", () => {
+  const t = P.l4(ctxOf(blankState()));
+  return t.includes("L3 ＋ L4 合計確認成本：__%\n　合計口徑：（p0 預設／pf）\n　合計方式：（同一次上漲取較高者／先後關卡相加）\n　合計是否超過預期報酬 1/3：（是／否）");
+});
+add("v3 一張白紙：指令 1～8 與 L5 的站點指令以宣告開頭；行前自檢、論點卡起草、備援不加", () => {
+  const c = ctxOf(blankState());
+  const withSheet = ["L0", "L1P", "L1", "L2P", "L2", "XS", "L3", "L4", "L5"];
+  const ok = STATIONS.filter((s) => withSheet.includes(s.id)).every((s) => s.prompt(c).startsWith(P.BLANK_SHEET + "\n\n"));
+  const pre = STATIONS.find((s) => s.id === "PRE")!.prompt(c);
+  const tc = STATIONS.find((s) => s.id === "TC")!.prompt(c);
+  const backup = STATIONS.find((s) => s.id === "L1P")!.backup!.prompt(c);
+  return ok && !pre.includes("【一張白紙】") && !tc.includes("【一張白紙】") && !backup.includes("【一張白紙】") &&
+    P.BLANK_SHEET.includes("一律視為新資金研究。");
+});
+add("v3 一張白紙不改教材原文：產生器本身不含宣告", () => {
+  const c = ctxOf(blankState());
+  return [P.l0, P.l1Pre, P.l1, P.l2Pre, P.l2, P.intersect, P.l3, P.l4, P.l5].every((f) => !f(c).includes("【一張白紙】"));
+});
+add("v3 L3 閘門改四態：bad＝不進場、hold＝條件價／條件事件；XS、L4 仍二選一", () => {
+  const l3 = STATIONS.find((s) => s.id === "L3")!.gate!;
+  const xs = STATIONS.find((s) => s.id === "XS")!.gate!;
+  const l4 = STATIONS.find((s) => s.id === "L4")!.gate!;
+  return l3.options.length === 4 && l3.bad.length === 1 && l3.bad[0] === "不進場" &&
+    (l3.hold ?? []).length === 2 && !!l3.holdMessage &&
+    xs.options.length === 2 && xs.bad.length === 1 && l4.options.length === 2 && l4.bad.length === 1 && !l4.hold;
+});
+add("v3 最常犯的錯 6→7：第六條是「R 沒有錨就算 CCC」", () =>
+  COMMON_MISTAKES.length === 7 && COMMON_MISTAKES[5][0] === "R 沒有錨就算 CCC" && COMMON_MISTAKES[6][0] === "忽略合計確認成本");
+add("v3 論點卡起草「五、CCC」補合計口徑 p0", () =>
+  P.thesisDraft(ctxOf(blankState())).includes("合計口徑採 p0（預設：L3 與 L4 都以現價為分母算漲幅）"));
 
 /* ---------- 證偽條件完成度 ---------- */
 add("三條沒寫完 → bad", () => falsifierStatus(blankState().tc).tone === "bad");
