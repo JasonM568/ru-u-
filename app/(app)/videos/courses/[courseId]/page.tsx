@@ -12,7 +12,7 @@ export default async function CoursePage({ params }: { params: Promise<{courseId
   if (error || !raw) notFound();
   const course = raw as VideoCourse;
   const { data, error: videoError } = await supabase.schema("elite").from("course_videos")
-    .select("id,course_id,title,url,category,note,created_at,published_at")
+    .select("id,course_id,title,url,category,note,created_at,published_at,sort_order")
     .eq("course_id",courseId).order("created_at");
   const videos = (data ?? []) as Video[];
   const instructor = enrollment.class_role === "instructor";

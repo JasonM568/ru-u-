@@ -2,7 +2,7 @@ import { MATERIAL_CATEGORIES } from "@/lib/constants";
 
 export type Video = {
   id: string; course_id: string; title: string; url: string; category: string; note: string | null;
-  created_at: string; published_at: string | null;
+  created_at: string; published_at: string | null; sort_order: number;
 };
 export type VideoCourse = {
   id: string; title: string; note: string | null; created_at: string;
@@ -21,7 +21,7 @@ export function orderedVideos(videos: Video[]): Video[] {
   return [...videos].sort((a,b) => {
     const ai = order.indexOf(a.category), bi = order.indexOf(b.category);
     const category = (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi);
-    return category || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
+    return category || a.sort_order - b.sort_order || a.id.localeCompare(b.id);
   });
 }
 

@@ -11,7 +11,7 @@ export default async function VideosPage() {
     supabase.schema("elite").from("video_courses").select("id,title,note,created_at")
       .order("created_at", { ascending: true }),
     supabase.schema("elite").from("course_videos")
-      .select("id,course_id,title,url,category,note,created_at,published_at"),
+      .select("id,course_id,title,url,category,note,created_at,published_at,sort_order"),
   ]);
   const courses = (courseResult.data ?? []) as VideoCourse[];
   const videos = (videoResult.data ?? []) as Video[];

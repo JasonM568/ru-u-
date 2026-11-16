@@ -87,6 +87,29 @@ export async function publishVideo(id: string, courseId: string, publish: boolea
   return {};
 }
 
+export async function updateVideo(id: string, courseId: string, title: string, note: string): Promise<ActionResult> {
+  const { supabase } = await requireInstructor();
+  if (!title.trim()) return { error: "請輸入影片標題" };
+  const { error } = await supabase.schema("elite").rpc("course_video_update", {
+    p_video_id: id, p_title: title.trim(), p_note: note.trim(),
+  });
+  if (error) return { error: error.message };
+  refresh([courseId], [id]);
+  return {};
+}
+
+export async function reorderCourseVideos(courseId: string, orderedIds: string[]): Promise<ActionResult> {
+  const { supabase } = await requireInstructor();
+  if (!courseId || !Array.isArray(orderedIds)) return { error: "課程或影片順序不正確" };
+  const { error } = await supabase.schema("elite").rpc("course_video_reorder", {
+    p_course_id: courseId, p_ordered_ids: orderedIds,
+  });
+  if (error) return { error: error.message };
+  refresh([courseId]);
+  revalidatePath("/videos/[id]", "page");
+  return {};
+}
+
 export async function moveVideo(id: string, oldCourseId: string, newCourseId: string): Promise<ActionResult> {
   const { supabase } = await requireInstructor();
   const { error } = await supabase.schema("elite").rpc("course_video_move", {

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MATERIAL_CATEGORIES, teamName } from "@/lib/constants";
-import type { CourseGrant, RosterMember, Video, VideoCourse } from "@/lib/video-course";
+import { orderedVideos, videoGroups, type CourseGrant, type RosterMember, type Video, type VideoCourse } from "@/lib/video-course";
 import { createCourse, createVideo, deleteCourse, deleteVideo, moveVideo, publishVideo,
-  setCourseGrants, updateCourse, type GrantInput } from "./actions";
+  reorderCourseVideos, setCourseGrants, updateCourse, updateVideo, type GrantInput } from "./actions";
 
 type Cohort = { code: string; display_name: string };
 type Props = { courses: VideoCourse[]; videos: Video[]; grants: CourseGrant[];
@@ -32,12 +32,87 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
   const [bulkCohort, setBulkCohort] = useState("");
   const [bulkTeam, setBulkTeam] = useState("");
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videoNote, setVideoNote] = useState("");
+  const [localVideos, setLocalVideos] = useState(videos);
+  const [sourceVideos, setSourceVideos] = useState(videos);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropId, setDropId] = useState<string | null>(null);
+  const drag = useRef<{ id: string; courseId: string; category: string; targetId: string | null } | null>(null);
+  const reorderInFlight = useRef(false);
   const [moveTarget, setMoveTarget] = useState("");
   const [previewed, setPreviewed] = useState<string[]>([]);
   const [confirm, setConfirm] = useState<Confirmation>(null);
   const [urlCheck, setUrlCheck] = useState("");
   const people = roster.filter((p) => p.class_role === "student");
   const filteredPeople = people.filter((p) => personLabel(p).toLowerCase().includes(personSearch.toLowerCase()));
+
+  if (videos !== sourceVideos) {
+    setSourceVideos(videos);
+    setLocalVideos(videos);
+  }
+
+  function editVideo(video: Video) {
+    setEditingVideo(video); setVideoTitle(video.title); setVideoNote(video.note ?? "");
+    setMoveTarget(""); setError("");
+  }
+
+  function reorderWithinCategory(id: string, targetId: string) {
+    if (busy || reorderInFlight.current || id === targetId) return;
+    const moving = localVideos.find((v) => v.id === id);
+    const target = localVideos.find((v) => v.id === targetId);
+    if (!moving || !target || moving.course_id !== target.course_id || moving.category !== target.category) return;
+    const courseVideos = orderedVideos(localVideos.filter((v) => v.course_id === moving.course_id));
+    const from = courseVideos.findIndex((v) => v.id === id);
+    const to = courseVideos.findIndex((v) => v.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [item] = courseVideos.splice(from,1);
+    courseVideos.splice(to,0,item);
+    const ranked = new Map(courseVideos.map((v,index) => [v.id,index]));
+    const previous = localVideos;
+    const next = localVideos.map((v) => ranked.has(v.id) ? { ...v, sort_order: ranked.get(v.id)! } : v);
+    setLocalVideos(next);
+    setError("");
+    reorderInFlight.current = true;
+    start(async () => {
+      try {
+        const result = await reorderCourseVideos(moving.course_id,courseVideos.map((v) => v.id));
+        if (result.error) { setLocalVideos(previous); setError(result.error); return; }
+        setNotice("影片順序已儲存"); router.refresh();
+      } catch {
+        setLocalVideos(previous); setError("排序儲存失敗，請稍後重試");
+      } finally {
+        reorderInFlight.current = false;
+      }
+    });
+  }
+
+  function onDragStart(event: PointerEvent<HTMLButtonElement>, video: Video) {
+    if (busy || reorderInFlight.current) return;
+    drag.current = { id: video.id, courseId: video.course_id, category: video.category, targetId: null };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggedId(video.id); setDropId(null);
+  }
+
+  function onDragMove(event: PointerEvent<HTMLButtonElement>) {
+    if (!drag.current) return;
+    const row = document.elementFromPoint(event.clientX,event.clientY)?.closest<HTMLElement>("[data-sort-video-id]");
+    const target = localVideos.find((v) => v.id === row?.dataset.sortVideoId);
+    const valid = target && target.course_id === drag.current.courseId && target.category === drag.current.category;
+    const targetId = valid ? target.id : null;
+    drag.current.targetId = targetId;
+    setDropId(targetId);
+  }
+
+  function onDragEnd() {
+    const current = drag.current;
+    drag.current = null; setDraggedId(null); setDropId(null);
+    if (current?.targetId) reorderWithinCategory(current.id,current.targetId);
+  }
+
+  function onDragCancel() {
+    drag.current = null; setDraggedId(null); setDropId(null);
+  }
 
   function editCourse(course: VideoCourse) {
     setEditingCourse(course); setCourseTitle(course.title); setCourseNote(course.note ?? "");
@@ -154,15 +229,38 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
         </div>;
       })}</div>
     </div>}
-    {videos.length > 0 && <div className="qec-card rounded-xl p-5">
+    {localVideos.length > 0 && <div className="qec-card rounded-xl p-5">
       <h2 className="font-semibold text-slate-900">影片發布管理</h2>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">{videos.map((video) => <div key={video.id}
-        className="flex items-center justify-between gap-3 rounded-lg border border-slate-300 p-3 text-sm">
-        <div className="min-w-0"><strong className="block truncate text-slate-900">{video.title}</strong>
-          <span className="text-xs text-slate-500">{courses.find((c) => c.id === video.course_id)?.title} · {video.published_at ? "已發布" : "草稿"}</span></div>
-        <button type="button" onClick={() => { setEditingVideo(video); setMoveTarget(""); setError(""); }}
-          className="btn-ghost shrink-0 rounded-lg px-3 py-2">管理</button>
-      </div>)}</div>
+      <p className="mt-1 text-xs text-slate-500">拖曳把手可調整同一分類內的觀看順序；觸控或鍵盤也可使用上下按鈕。</p>
+      <div className="mt-4 space-y-5">{courses.map((course) => {
+        const courseVideos = localVideos.filter((v) => v.course_id === course.id);
+        if (!courseVideos.length) return null;
+        return <section key={course.id} aria-label={course.title} className="space-y-4">
+          <h3 className="border-b border-slate-300 pb-2 font-semibold text-slate-900">{course.title}</h3>
+          {videoGroups(courseVideos).map((group) => <div key={group.key} className="space-y-2">
+            <h4 className="text-sm font-semibold text-amber-700">{group.name}</h4>
+            {group.videos.map((video,index) => <div key={video.id} data-sort-video-id={video.id}
+              className={`flex items-center gap-2 rounded-lg border p-2 text-sm ${dropId === video.id && draggedId !== video.id ? "border-amber-700 bg-amber-50" : "border-slate-300"} ${draggedId === video.id ? "opacity-60" : ""}`}>
+              <button type="button" aria-label={`拖曳排序：${video.title}`} title="拖曳排序" disabled={busy}
+                onPointerDown={(event) => onDragStart(event,video)} onPointerMove={onDragMove}
+                onPointerUp={onDragEnd} onPointerCancel={onDragCancel}
+                className="shrink-0 cursor-grab rounded-lg px-2 py-2 text-lg text-slate-600 active:cursor-grabbing disabled:opacity-40"
+                style={{ touchAction: "none" }}>☰</button>
+              <div className="min-w-0 flex-1"><strong className="block truncate text-slate-900">{video.title}</strong>
+                <span className="text-xs text-slate-500">{video.published_at ? "已發布" : "草稿"}</span></div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button type="button" aria-label={`上移：${video.title}`} disabled={busy || index === 0}
+                  onClick={() => reorderWithinCategory(video.id,group.videos[index-1].id)}
+                  className="btn-ghost rounded-lg px-2 py-2 disabled:opacity-30">↑</button>
+                <button type="button" aria-label={`下移：${video.title}`} disabled={busy || index === group.videos.length-1}
+                  onClick={() => reorderWithinCategory(video.id,group.videos[index+1].id)}
+                  className="btn-ghost rounded-lg px-2 py-2 disabled:opacity-30">↓</button>
+                <button type="button" onClick={() => editVideo(video)} className="btn-ghost rounded-lg px-3 py-2">管理</button>
+              </div>
+            </div>)}</div>)}
+        </section>;
+      })}</div>
+      {error && !editingVideo && <p role="alert" className="mt-3 text-sm text-rose-500">{error}</p>}
     </div>}
 
     {editingCourse && <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/80 p-3 sm:p-8" role="dialog" aria-modal="true" aria-labelledby="course-edit-title">
@@ -226,6 +324,16 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
           <p className="text-sm text-slate-500">{editingVideo.published_at ? "已發布" : "草稿"} · {courses.find((c) => c.id === editingVideo.course_id)?.title}</p></div>
           <button type="button" onClick={() => setEditingVideo(null)} aria-label="關閉" className="text-2xl text-slate-400">×</button></div>
         <div className="mt-5 space-y-4">
+          <div className="space-y-3">
+            <label className="block text-sm">影片標題<input value={videoTitle} onChange={(event) => setVideoTitle(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 p-2" /></label>
+            <label className="block text-sm">影片說明<textarea value={videoNote} onChange={(event) => setVideoNote(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 p-2" /></label>
+            <button type="button" disabled={busy || !videoTitle.trim()}
+              onClick={() => run(() => updateVideo(editingVideo.id,editingVideo.course_id,videoTitle,videoNote),
+                "影片資料已更新",() => setEditingVideo(null))}
+              className="btn-gold rounded-lg px-4 py-2 disabled:opacity-50">儲存影片資料</button>
+          </div>
           <div className="flex flex-wrap items-center gap-3"><Link href={`/videos/${editingVideo.id}`} target="_blank" rel="noopener noreferrer"
             onClick={() => setPreviewed((old) => [...new Set([...old,editingVideo.id])])} className="btn-ghost rounded-lg px-4 py-2">試播影片 ↗</Link>
             {!editingVideo.published_at && <button type="button" disabled={busy || !previewed.includes(editingVideo.id)}

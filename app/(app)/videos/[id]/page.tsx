@@ -25,14 +25,14 @@ export default async function VideoPage({ params }: { params: Promise<{id:string
   const { id } = await params;
   const { supabase, enrollment } = await requireEnrollment();
   const { data: raw, error } = await supabase.schema("elite").from("course_videos")
-    .select("id,course_id,title,url,category,note,created_at,published_at").eq("id",id).maybeSingle();
+    .select("id,course_id,title,url,category,note,created_at,published_at,sort_order").eq("id",id).maybeSingle();
   if (error || !raw) notFound();
   const video = raw as Video;
   const { data: course } = await supabase.schema("elite").from("video_courses")
     .select("id,title").eq("id",video.course_id).maybeSingle();
   if (!course) notFound();
   const { data } = await supabase.schema("elite").from("course_videos")
-    .select("id,course_id,title,url,category,note,created_at,published_at")
+    .select("id,course_id,title,url,category,note,created_at,published_at,sort_order")
     .eq("course_id",video.course_id).order("created_at");
   const visible = orderedVideos((data ?? []) as Video[]);
   const index = visible.findIndex((v) => v.id === id);
