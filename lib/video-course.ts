@@ -2,7 +2,7 @@ import { MATERIAL_CATEGORIES } from "@/lib/constants";
 
 export type Video = {
   id: string; course_id: string; title: string; url: string; category: string; note: string | null;
-  created_at: string; published_at: string | null; sort_order: number;
+  created_at: string; published_at: string | null; previewed_at: string | null; sort_order: number;
 };
 export type VideoCourse = {
   id: string; title: string; note: string | null; created_at: string;

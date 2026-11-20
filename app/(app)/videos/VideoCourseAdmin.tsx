@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MATERIAL_CATEGORIES, teamName } from "@/lib/constants";
 import { orderedVideos, videoGroups, type CourseGrant, type RosterMember, type Video, type VideoCourse } from "@/lib/video-course";
-import { createCourse, createVideo, deleteCourse, deleteVideo, moveVideo, publishVideo,
+import { createCourse, createVideo, deleteCourse, deleteVideo, markPreviewed, moveVideo, publishVideo,
   reorderCourseVideos, setCourseGrants, updateCourse, updateVideo, type GrantInput } from "./actions";
 
 type Cohort = { code: string; display_name: string };
@@ -335,11 +335,18 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
               className="btn-gold rounded-lg px-4 py-2 disabled:opacity-50">儲存影片資料</button>
           </div>
           <div className="flex flex-wrap items-center gap-3"><Link href={`/videos/${editingVideo.id}`} target="_blank" rel="noopener noreferrer"
-            onClick={() => setPreviewed((old) => [...new Set([...old,editingVideo.id])])} className="btn-ghost rounded-lg px-4 py-2">試播影片 ↗</Link>
-            {!editingVideo.published_at && <button type="button" disabled={busy || !previewed.includes(editingVideo.id)}
+            onClick={() => {
+              setPreviewed((old) => [...new Set([...old,editingVideo.id])]);
+              markPreviewed(editingVideo.id);
+            }} className="btn-ghost rounded-lg px-4 py-2">試播影片 ↗</Link>
+            {!editingVideo.published_at && <button type="button"
+              disabled={busy || !(previewed.includes(editingVideo.id) || editingVideo.previewed_at)}
               onClick={() => run(() => publishVideo(editingVideo.id,editingVideo.course_id,true),"影片已發布",() => setEditingVideo(null))}
               className="btn-gold rounded-lg px-4 py-2 disabled:opacity-50">發布影片</button>}
-            {!editingVideo.published_at && !previewed.includes(editingVideo.id) && <span className="text-xs text-slate-500">請先試播，再發布。</span>}
+            {!editingVideo.published_at && !(previewed.includes(editingVideo.id) || editingVideo.previewed_at) &&
+              <span className="text-xs text-slate-500">請先試播，再發布：試播影片會開新分頁播放，播放後回到這裡再按發布。</span>}
+            {!editingVideo.published_at && !previewed.includes(editingVideo.id) && editingVideo.previewed_at &&
+              <span className="text-xs text-slate-500">之前已試播過，可直接發布。</span>}
           </div>
           <div className="border-t border-slate-300 pt-4"><label className="block text-sm">移至其他課程
             <select aria-label="移至其他課程" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 p-2">

@@ -77,6 +77,13 @@ export async function createVideo(form: FormData): Promise<ActionResult> {
   return { id: String(data) };
 }
 
+export async function markPreviewed(id: string): Promise<ActionResult> {
+  const { supabase } = await requireInstructor();
+  const { error } = await supabase.schema("elite").rpc("course_video_mark_previewed", { p_video_id: id });
+  if (error) return { error: error.message };
+  return {};
+}
+
 export async function publishVideo(id: string, courseId: string, publish: boolean): Promise<ActionResult> {
   const { supabase } = await requireInstructor();
   const { error } = await supabase.schema("elite").rpc("course_video_publish", {
