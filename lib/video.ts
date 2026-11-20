@@ -39,8 +39,9 @@ function youtubeEmbed(id: string, u: URL): string | null {
   // 保留起始時間（t=90 或 t=1m30s → 秒數）
   const t = u.searchParams.get("t") ?? u.searchParams.get("start");
   const secs = t ? parseTime(t) : null;
-  const start = secs ? `?start=${secs}` : "";
-  return `https://www.youtube-nocookie.com/embed/${id}${start}`;
+  const params = new URLSearchParams({ modestbranding: "1", rel: "0" });
+  if (secs) params.set("start", String(secs));
+  return `https://www.youtube-nocookie.com/embed/${id}?${params}`;
 }
 
 function parseTime(t: string): number | null {

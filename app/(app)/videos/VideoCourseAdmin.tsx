@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MATERIAL_CATEGORIES, teamName } from "@/lib/constants";
 import { orderedVideos, videoGroups, type CourseGrant, type RosterMember, type Video, type VideoCourse } from "@/lib/video-course";
-import { createCourse, createVideo, deleteCourse, deleteVideo, markPreviewed, moveVideo, publishVideo,
-  reorderCourseVideos, setCourseGrants, updateCourse, updateVideo, type GrantInput } from "./actions";
+import { createCourse, createVideo, deleteCourse, deleteVideo, markPreviewed, moveVideo, publishAllDrafts,
+  publishVideo, reorderCourseVideos, setCourseGrants, updateCourse, updateVideo, type GrantInput } from "./actions";
 
 type Cohort = { code: string; display_name: string };
 type Props = { courses: VideoCourse[]; videos: Video[]; grants: CourseGrant[];
   cohorts: Cohort[]; roster: RosterMember[] };
-type Confirmation = "delete-course" | "move-video" | "delete-video" | "unpublish" | null;
+type Confirmation = "delete-course" | "move-video" | "delete-video" | "unpublish" | "publish-all" | null;
 
 function personLabel(person: RosterMember) {
   return `${person.display_name || person.user_id.slice(0,8)} · ${person.cohort} · ${teamName(person.team_id)}`;
@@ -24,6 +24,7 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editingCourse, setEditingCourse] = useState<VideoCourse | null>(null);
+  const [bulkPublishCourse, setBulkPublishCourse] = useState<VideoCourse | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
   const [courseNote, setCourseNote] = useState("");
   const [grantCourse, setGrantCourse] = useState<VideoCourse | null>(null);
@@ -159,6 +160,14 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
     } else if (mode === "unpublish" && editingVideo) {
       const video = editingVideo;
       run(() => publishVideo(video.id, video.course_id, false), "影片已退回草稿", () => setEditingVideo(null));
+    } else if (mode === "publish-all" && bulkPublishCourse) {
+      const course = bulkPublishCourse;
+      setError("");
+      start(async () => {
+        const result = await publishAllDrafts(course.id);
+        if (result.error) { setError(result.error); return; }
+        setBulkPublishCourse(null); setNotice(`已發布 ${result.count ?? 0} 支影片`); router.refresh();
+      });
     }
   }
   const destination = courses.find((c) => c.id === moveTarget);
@@ -219,10 +228,13 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
       <div className="mt-3 space-y-3">{courses.map((course) => {
         const count = videos.filter((v) => v.course_id === course.id).length;
         const grantCount = grants.filter((g) => g.course_id === course.id).length;
+        const draftCount = videos.filter((v) => v.course_id === course.id && !v.published_at).length;
         return <div key={course.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-300 p-3">
           <div><strong className="text-slate-900">{course.title}</strong>
-            <p className="text-xs text-slate-500">{count} 支影片 · {grantCount} 個開通對象</p></div>
+            <p className="text-xs text-slate-500">{count} 支影片 · {grantCount} 個開通對象{draftCount > 0 ? ` · ${draftCount} 支草稿` : ""}</p></div>
           <div className="flex flex-wrap gap-2">
+            {draftCount > 0 && <button type="button" onClick={() => { setBulkPublishCourse(course); setConfirm("publish-all"); }}
+              className="btn-gold rounded-lg px-3 py-2 text-sm">全部發布（{draftCount}）</button>}
             <button type="button" onClick={() => editGrants(course)} className="btn-gold rounded-lg px-3 py-2 text-sm">課程開通</button>
             <button type="button" onClick={() => editCourse(course)} className="btn-ghost rounded-lg px-3 py-2 text-sm">編輯／刪除</button>
           </div>
@@ -364,12 +376,14 @@ export function VideoCourseAdmin({ courses, videos, grants, cohorts, roster }: P
       </div>
     </div>}
 
-    {confirm && <ConfirmDialog title={confirm === "delete-course" ? "確認刪除課程" : confirm === "move-video" ? "確認移動影片" : confirm === "unpublish" ? "確認取消發布" : "確認移除影片"}
-      onCancel={() => setConfirm(null)} confirm={<button type="button" disabled={busy} onClick={confirmed} className="btn-gold rounded-lg px-4 py-2">確認</button>}>
+    {confirm && <ConfirmDialog title={confirm === "delete-course" ? "確認刪除課程" : confirm === "move-video" ? "確認移動影片" : confirm === "unpublish" ? "確認取消發布" : confirm === "publish-all" ? "確認全部發布" : "確認移除影片"}
+      onCancel={() => { setConfirm(null); setBulkPublishCourse(null); }}
+      confirm={<button type="button" disabled={busy} onClick={confirmed} className="btn-gold rounded-lg px-4 py-2">確認</button>}>
       {confirm === "delete-course" ? <>「{editingCourse?.title}」將被刪除。若課程內有影片，系統會拒絕刪除。</>
         : confirm === "move-video" ? <>移到「{destination?.title}」後會退回草稿，需在新課程試播並發布，學員才看得到。</>
           : confirm === "unpublish" ? <>「{editingVideo?.title}」將退回草稿，學員會立即看不到。</>
-            : <>「{editingVideo?.title}」將永久移除。</>}
+            : confirm === "publish-all" ? <>「{bulkPublishCourse?.title}」裡所有草稿影片會立即發布，已設定開通對象的學員會立即看到，不會個別要求試播。</>
+              : <>「{editingVideo?.title}」將永久移除。</>}
     </ConfirmDialog>}
   </div>;
 }

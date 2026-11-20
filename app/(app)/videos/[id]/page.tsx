@@ -5,6 +5,7 @@ import { videoEmbedUrl } from "@/lib/video";
 import { inspectVideo } from "@/lib/video-status";
 import { categoryName, orderedVideos, videoGroups, type Video } from "@/lib/video-course";
 import { Badge } from "@/components/ui";
+import { PublishButton } from "./PublishButton";
 
 function Sidebar({ videos, current }: { videos: Video[]; current: string }) {
   return <nav aria-label="課程章節" className="space-y-5">{videoGroups(videos).map((group) => <section key={group.key}>
@@ -47,7 +48,7 @@ export default async function VideoPage({ params }: { params: Promise<{id:string
       <main className="min-w-0">
         <div className="aspect-video overflow-hidden rounded-xl border border-slate-300 bg-black">
           {status !== "private" && embed ? <iframe title={video.title} src={embed}
-            className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+            className="h-full w-full" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
             : <div className="flex h-full items-center justify-center p-5 text-center text-sm text-slate-800" role="status">
               {status === "private" ? instructor
                 ? "這支在 YouTube 是私人影片，請改成「不公開」才能播放"
@@ -60,6 +61,7 @@ export default async function VideoPage({ params }: { params: Promise<{id:string
           {instructor && !video.published_at && <Badge tone="amber">草稿 · 僅講師可見</Badge>}
         </div>
         <h1 className="mt-2 font-display text-2xl font-semibold text-slate-900">{video.title}</h1>
+        {instructor && <PublishButton id={video.id} courseId={video.course_id} published={!!video.published_at} />}
         {video.note && <p className="mt-3 whitespace-pre-wrap leading-7 text-slate-600">{video.note}</p>}
         <div className="mt-8 flex items-center justify-between gap-3 border-t border-slate-300 pt-5 text-sm">
           {previous ? <Link href={`/videos/${previous.id}`} className="btn-ghost rounded-lg px-4 py-2">← 上一集<span className="hidden sm:inline">：{previous.title}</span></Link> : <span />}

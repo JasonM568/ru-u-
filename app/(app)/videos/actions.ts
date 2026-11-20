@@ -77,6 +77,14 @@ export async function createVideo(form: FormData): Promise<ActionResult> {
   return { id: String(data) };
 }
 
+export async function publishAllDrafts(courseId: string): Promise<ActionResult & { count?: number }> {
+  const { supabase } = await requireInstructor();
+  const { data, error } = await supabase.schema("elite").rpc("course_video_publish_all", { p_course_id: courseId });
+  if (error) return { error: error.message };
+  refresh([courseId]);
+  return { count: Number(data) };
+}
+
 export async function markPreviewed(id: string): Promise<ActionResult> {
   const { supabase } = await requireInstructor();
   const { error } = await supabase.schema("elite").rpc("course_video_mark_previewed", { p_video_id: id });
